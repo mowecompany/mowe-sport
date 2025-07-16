@@ -10,17 +10,16 @@ export default function IndexPage() {
   return (
     <DefaultLayout>
       <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
-        <div className="inline-block max-w-lg text-center justify-center">
+        <div className="inline-block max-w-xl text-center justify-center">
           <span className={title()}>The best&nbsp;</span>
           <span className={title({ color: "violet" })}>dashboard&nbsp;</span>
           <span className={title()}>
             to manage the tournaments of different sports and categories.
           </span>
           <div className={subtitle({ class: "mt-4" })}>
-            Developed by Deivids.
+            Developed by Deivids and Juan José.
           </div>
         </div>
-
         <div className="flex gap-3">
           <Link
             isExternal

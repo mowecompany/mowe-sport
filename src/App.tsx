@@ -1,17 +1,37 @@
 import { Route, Routes } from "react-router-dom";
 
 import IndexPage from "@/pages/index";
-import DocsPage from "@/pages/docs";
-import PricingPage from "@/pages/pricing";
-import BlogPage from "@/pages/blog";
+// Auth pages
+import SignInPage from "@/auth/sign-in/sign-in";
+import SignUpPage from "@/auth/sign-up/sign-up";
+// Main pages
+import SportsPage from "@/pages/main/sports";
+// eslint-disable-next-line import/order
+import TeamsPage from "@/pages/main/teams";
+
+// Administration pages
+import AdminsPage from "@/pages/administration/admins";
+import PlayersPage from "@/pages/administration/players";
+import UsersPage from "@/pages/administration/users";
 
 function App() {
   return (
     <Routes>
-      <Route element={<IndexPage />} path="/" />
-      <Route element={<DocsPage />} path="/docs" />
-      <Route element={<PricingPage />} path="/pricing" />
-      <Route element={<BlogPage />} path="/blog" />
+      {/* Auth routes */}
+      <Route element={<SignInPage />} path="/" />
+      <Route element={<SignUpPage />} path="/auth/sign-up" />
+      
+      {/* Dashboard route */}
+      <Route element={<IndexPage />} path="/dashboard" />
+      
+      {/* Main routes */}
+      <Route element={<SportsPage />} path="/main/sports" />
+      <Route element={<TeamsPage />} path="/main/teams" />
+
+      {/* Administration routes */}
+      <Route element={<AdminsPage />} path="/administration/admins" />
+      <Route element={<PlayersPage />} path="/administration/players" />
+      <Route element={<UsersPage />} path="/administration/users" />
     </Routes>
   );
 }
