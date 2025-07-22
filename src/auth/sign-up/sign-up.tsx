@@ -4,9 +4,14 @@ import { Button } from "@heroui/button";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { EyeFilledIcon, EyeSlashFilledIcon } from "@heroui/shared-icons";
 import { useNavigate } from "react-router-dom";
+
 import { title } from "@/components/primitives";
+import { authService, type SignUpData } from "@/services/auth";
+import { useInitialTheme } from "@/hooks/useInitialTheme";
 
 export default function SignUpPage() {
+  useInitialTheme();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -14,6 +19,8 @@ export default function SignUpPage() {
   const [isVisible, setIsVisible] = useState(false);
   const [isConfirmVisible, setIsConfirmVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const navigate = useNavigate();
 
   const toggleVisibility = () => setIsVisible(!isVisible);
@@ -21,19 +28,49 @@ export default function SignUpPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Limpiar mensajes previos
+    setError("");
+    setSuccess("");
+    
+    // Validar que las contraseñas coincidan
     if (password !== confirmPassword) {
-      alert("Las contraseñas no coinciden");
+      setError("Las contraseñas no coinciden");
+      return;
+    }
+    
+    // Validar longitud de contraseña
+    if (password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres");
       return;
     }
     
     setIsLoading(true);
     
-    // Simulate registration process
-    setTimeout(() => {
+    try {
+      const signUpData: SignUpData = {
+        name,
+        email,
+        password
+      };
+      
+      const response = await authService.signUp(signUpData);
+      
+      if (response.success) {
+        setSuccess(response.message);
+        // Esperar un momento para mostrar el mensaje de éxito
+        setTimeout(() => {
+          navigate("/");
+        }, 2000);
+      } else {
+        setError(response.error || response.message);
+      }
+    } catch (error: any) {
+      setError("Error inesperado. Por favor, intenta de nuevo.");
+      console.error("Sign up error:", error);
+    } finally {
       setIsLoading(false);
-      // Navigate to dashboard after successful registration
-      navigate("/dashboard");
-    }, 1000);
+    }
   };
 
   return (
@@ -41,7 +78,11 @@ export default function SignUpPage() {
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="flex flex-col gap-3 pb-6">
           <div className="flex items-center justify-center">
-            <img alt="MoweSport Logo" src="/favicon.png" className="w-12 h-12" />
+            <img
+              alt="MoweSport Logo"
+              className="w-12 h-12"
+              src="/favicon.png"
+            />
           </div>
           <div className="text-center">
             <h1 className={title({ size: "sm" })}>Crear Cuenta</h1>
@@ -50,41 +91,52 @@ export default function SignUpPage() {
             </p>
           </div>
         </CardHeader>
-        <CardBody className="pt-0">
-          <form onSubmit={handleSignUp} className="flex flex-col gap-4">
+        <CardBody className="pt-0 gap-4">
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-4">
+              <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+          
+          {success && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-4">
+              <p className="text-green-600 dark:text-green-400 text-sm">{success}</p>
+            </div>
+          )}
+          
+          <form className="flex flex-col gap-4" onSubmit={handleSignUp}>
             <Input
-              type="text"
+              isRequired
+              classNames={{
+                input: "text-sm",
+                inputWrapper: "border-default-200 hover:border-default-400"
+              }}
               label="Nombre completo"
               placeholder="Tu nombre completo"
+              type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              isRequired
               variant="bordered"
+              onChange={(e) => setName(e.target.value)}
+            />
+            <Input
+              isRequired
               classNames={{
                 input: "text-sm",
                 inputWrapper: "border-default-200 hover:border-default-400"
               }}
-            />
-            <Input
-              type="email"
               label="Correo electrónico"
               placeholder="tu@email.com"
+              type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              isRequired
               variant="bordered"
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <Input
+              isRequired
               classNames={{
                 input: "text-sm",
                 inputWrapper: "border-default-200 hover:border-default-400"
               }}
-            />
-            <Input
-              label="Contraseña"
-              placeholder="Crea una contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              isRequired
-              variant="bordered"
               endContent={
                 <button
                   className="focus:outline-none"
@@ -98,19 +150,19 @@ export default function SignUpPage() {
                   )}
                 </button>
               }
+              label="Contraseña"
+              placeholder="Crea una contraseña"
               type={isVisible ? "text" : "password"}
+              value={password}
+              variant="bordered"
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <Input
+              isRequired
               classNames={{
                 input: "text-sm",
                 inputWrapper: "border-default-200 hover:border-default-400"
               }}
-            />
-            <Input
-              label="Confirmar contraseña"
-              placeholder="Confirma tu contraseña"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              isRequired
-              variant="bordered"
               endContent={
                 <button
                   className="focus:outline-none"
@@ -124,19 +176,20 @@ export default function SignUpPage() {
                   )}
                 </button>
               }
+              label="Confirmar contraseña"
+              placeholder="Confirma tu contraseña"
               type={isConfirmVisible ? "text" : "password"}
-              classNames={{
-                input: "text-sm",
-                inputWrapper: "border-default-200 hover:border-default-400"
-              }}
+              value={confirmPassword}
+              variant="bordered"
+              onChange={(e) => setConfirmPassword(e.target.value)}
             />
             <Button
-              type="submit"
+              className="w-full font-semibold"
               color="primary"
-              size="lg"
-              isLoading={isLoading}
-              className="w-full mt-4 font-semibold"
               isDisabled={!email || !password || !confirmPassword || !name}
+              isLoading={isLoading}
+              size="lg"
+              type="submit"
             >
               {isLoading ? "Creando cuenta..." : "Crear Cuenta"}
             </Button>
@@ -156,4 +209,4 @@ export default function SignUpPage() {
       </Card>
     </div>
   );
-}
+};

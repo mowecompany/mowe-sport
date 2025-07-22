@@ -5,12 +5,16 @@ import { Card, CardBody, CardHeader } from "@heroui/card";
 import { EyeFilledIcon, EyeSlashFilledIcon } from "@heroui/shared-icons";
 import { useNavigate } from "react-router-dom";
 import { title } from "@/components/primitives";
+import { authService } from "@/services/auth";
+import { useInitialTheme } from "@/hooks/useInitialTheme";
 
 export default function SignInPage() {
+  useInitialTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const toggleVisibility = () => setIsVisible(!isVisible);
@@ -18,13 +22,22 @@ export default function SignInPage() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError("");
 
-    // Simulate authentication process
-    setTimeout(() => {
+    try {
+      const result = await authService.signIn(email, password);
+      
+      if (result.success) {
+        // Navigate to dashboard after successful login
+        navigate("/dashboard");
+      } else {
+        setError(result.error || result.message);
+      }
+    } catch (err) {
+      setError("Error al iniciar sesión. Por favor, intenta de nuevo.");
+    } finally {
       setIsLoading(false);
-      // Navigate to dashboard after successful login
-      navigate("/dashboard");
-    }, 1000);
+    }
   };
 
   return (
@@ -83,6 +96,12 @@ export default function SignInPage() {
               }}
             />
 
+            {error && (
+              <div className="bg-danger-50 border border-danger-200 text-danger-600 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
             <p className="text-sm text-default-500">
               <button
                 onClick={() => navigate("")}
@@ -98,7 +117,7 @@ export default function SignInPage() {
               color="primary"
               size="lg"
               isLoading={isLoading}
-              className="w-full mt-4 font-semibold"
+              className="w-full font-semibold"
               isDisabled={!email || !password}
             >
               {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}

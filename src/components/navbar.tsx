@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Kbd } from "@heroui/kbd";
 import { Link } from "@heroui/link";
 import { Input } from "@heroui/input";
+import { Avatar } from "@heroui/avatar";
 import {
   Navbar as HeroUINavbar,
   NavbarBrand,
@@ -108,7 +109,15 @@ export const Navbar = () => {
           <ThemeSwitch />
         </NavbarItem>
         <NavbarItem className="hidden lg:flex">{searchInput}</NavbarItem>
-        <NavbarItem className="hidden md:flex" />
+        <NavbarItem className="hidden md:flex">
+          <Avatar
+            isBordered
+            color="primary"
+            size="sm"
+            src="https://i.pinimg.com/736x/fa/9c/79/fa9c793b96fd0f3eb868fbfbc46a4dd7.jpg"
+            className="transition-transform"
+          />
+        </NavbarItem>
       </NavbarContent>
 
       <NavbarContent className="sm:hidden basis-1 pl-4" justify="end">
@@ -116,6 +125,13 @@ export const Navbar = () => {
           <GithubIcon className="text-default-500" />
         </Link>
         <ThemeSwitch />
+        <Avatar
+          isBordered
+          color="primary"
+          size="sm"
+          src="https://i.pinimg.com/736x/fa/9c/79/fa9c793b96fd0f3eb868fbfbc46a4dd7.jpg"
+          className="transition-transform"
+        />
         <NavbarMenuToggle />
       </NavbarContent>
 

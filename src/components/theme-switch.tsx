@@ -7,7 +7,13 @@ import clsx from "clsx";
 export interface ThemeSwitchProps {
   className?: string;
   size?: "sm" | "md" | "lg";
-  color?: "default" | "primary" | "secondary" | "success" | "warning" | "danger";
+  color?:
+    | "default"
+    | "primary"
+    | "secondary"
+    | "success"
+    | "warning"
+    | "danger";
 }
 
 export const ThemeSwitch: FC<ThemeSwitchProps> = ({
@@ -21,7 +27,9 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
   const isDarkMode = theme === "dark";
 
   const handleToggle = () => {
-    setTheme(isDarkMode ? "light" : "dark");
+    const newTheme = isDarkMode ? "light" : "dark";
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
   };
 
   useEffect(() => {
@@ -35,17 +43,14 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
 
   return (
     <Switch
-      isSelected={isDarkMode}
-      onValueChange={handleToggle}
-      size={size}
-      color={color}
-      className={clsx(
-        "transition-opacity hover:opacity-80",
-        className,
-      )}
-      startContent={<Icon icon="lucide:sun" />}
-      endContent={<Icon icon="lucide:moon" />}
       aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+      className={clsx("transition-opacity hover:opacity-80", className)}
+      color={color}
+      endContent={<Icon icon="lucide:moon" />}
+      isSelected={isDarkMode}
+      size={size}
+      startContent={<Icon icon="lucide:sun" />}
+      onValueChange={handleToggle}
     />
   );
 };

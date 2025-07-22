@@ -38,7 +38,7 @@ export const siteConfig: SiteConfig = {
       items: [
         {
           label: "Dashboard",
-          href: "/",
+          href: "/dashboard",
           icon: React.createElement(DashboardIcon, { className: "w-4 h-4" }),
         },
         {
