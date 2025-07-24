@@ -536,4 +536,4 @@ COMMENT ON FUNCTION public.revoke_user_role(UUID, UUID, UUID, VARCHAR, UUID) IS 
 COMMENT ON FUNCTION public.update_account_status(UUID, VARCHAR, UUID, TEXT) IS 'Updates user account status (super admin only)';
 COMMENT ON FUNCTION public.set_account_active(UUID, BOOLEAN, UUID, TEXT) IS 'Activates or deactivates user account (super admin only)';
 COMMENT ON FUNCTION public.has_view_permission(UUID, VARCHAR) IS 'Checks if user has permission to access specific view';
-COMMENT ON FUNCTION public.set_view_permission(UUID, VARCHAR, VARCHAR, BOOLEAN, UUID) IS 'Sets view permission for user or role (super admin only)';
+COMMENT ON FUNCTION public.set_view_permission(VARCHAR, BOOLEAN, UUID, UUID, VARCHAR) IS 'Sets view permission for user or role (super admin only)';
