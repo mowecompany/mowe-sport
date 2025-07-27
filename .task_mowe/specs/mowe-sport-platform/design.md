@@ -29,7 +29,7 @@ Considera las convenciones de nomenclatura de tu equipo o proyecto para mantener
 
 El diseño de Mowe Sport se basa en una arquitectura de microservicios escalable que aprovecha las fortalezas de Go para el backend, React con Vite para el frontend, y Supabase como base de datos principal. La arquitectura está diseñada para soportar 100,000 usuarios concurrentes con tiempos de respuesta menores a 2 segundos y 99.9% de disponibilidad.
 
-**Estado Actual**: Sistema de autenticación con Supabase implementado, incluyendo registro e inicio de sesión.
+**Estado Actual**: Esquema básico implementado. Necesitamos completar la tabla `user_profiles` con autenticación y implementar el sistema completo.
 
 ## Architecture
 
@@ -110,13 +110,14 @@ graph TB
 
 #### 2. Authentication Service
 - **Responsabilidad**: Gestión de usuarios, roles, 2FA
-- **Integración**: Supabase Auth como base
+- **Integración**: Sistema de autenticación personalizado con JWT
 - **Características**:
-  - Registro/Login con Supabase Auth
-  - Gestión de roles (Super Admin, Admin, Propietario, etc.)
-  - 2FA para administradores
-  - JWT token management
-  - Password policies
+  - Registro/Login con password_hash personalizado
+  - Gestión de roles granulares (Super Admin, Admin, Propietario, etc.)
+  - 2FA con TOTP para administradores
+  - JWT token management personalizado
+  - Password policies y recuperación con tokens
+  - Bloqueo progresivo de cuentas por intentos fallidos
 
 #### 3. Tournament Service
 - **Responsabilidad**: CRUD de torneos, aprobaciones, programación
@@ -175,10 +176,11 @@ CREATE TABLE sports (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- User profiles table (extends Supabase auth.users)
+-- User profiles table (main user table with authentication)
 CREATE TABLE user_profiles (
-    user_id UUID PRIMARY KEY REFERENCES auth.users(id),
-    email VARCHAR(255) NOT NULL,
+    user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
@@ -190,6 +192,10 @@ CREATE TABLE user_profiles (
     last_login_at TIMESTAMP,
     failed_login_attempts INTEGER DEFAULT 0,
     locked_until TIMESTAMP,
+    token_recovery VARCHAR(255),
+    token_expiration_date TIMESTAMP,
+    two_factor_secret VARCHAR(255),
+    two_factor_enabled BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -226,7 +232,7 @@ CREATE TABLE tournaments (
     description TEXT,
     city_id UUID NOT NULL REFERENCES cities(city_id),
     sport_id UUID NOT NULL REFERENCES sports(sport_id),
-    admin_user_id UUID NOT NULL REFERENCES users(user_id),
+    admin_user_id UUID NOT NULL REFERENCES user_profiles(user_id),
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     registration_deadline DATE,
@@ -243,7 +249,7 @@ CREATE TABLE teams (
     team_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(200) NOT NULL,
     description TEXT,
-    owner_user_id UUID NOT NULL REFERENCES users(user_id),
+    owner_user_id UUID NOT NULL REFERENCES user_profiles(user_id),
     city_id UUID NOT NULL REFERENCES cities(city_id),
     sport_id UUID NOT NULL REFERENCES sports(sport_id),
     logo_url TEXT,
@@ -309,7 +315,7 @@ CREATE TABLE matches (
     match_date DATE NOT NULL,
     match_time TIME NOT NULL,
     location VARCHAR(200),
-    referee_user_id UUID REFERENCES users(user_id),
+    referee_user_id UUID REFERENCES user_profiles(user_id),
     score_team1 INTEGER DEFAULT 0,
     score_team2 INTEGER DEFAULT 0,
     status VARCHAR(20) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'live', 'completed', 'cancelled', 'postponed')),
@@ -388,11 +394,13 @@ CREATE POLICY "Admins can manage tournaments in their city/sport" ON tournaments
 FOR ALL TO authenticated
 USING (
     EXISTS (
-        SELECT 1 FROM users 
-        WHERE users.user_id = auth.uid() 
-        AND users.role IN ('super_admin', 'admin')
-        AND (users.role = 'super_admin' OR 
-             (users.city_id = tournaments.city_id AND users.sport_id = tournaments.sport_id))
+        SELECT 1 FROM user_profiles up
+        JOIN user_roles_by_city_sport ur ON up.user_id = ur.user_id
+        WHERE up.user_id = current_user_id() 
+        AND ur.role_name IN ('super_admin', 'city_admin')
+        AND (ur.role_name = 'super_admin' OR 
+             (ur.city_id = tournaments.city_id AND ur.sport_id = tournaments.sport_id))
+        AND ur.is_active = TRUE
     )
 );
 
@@ -406,26 +414,27 @@ USING (
     EXISTS (
         SELECT 1 FROM tournament_teams tt
         JOIN teams t ON tt.team_id = t.team_id
-        JOIN users u ON t.owner_user_id = u.user_id
         WHERE tt.tournament_id = tournaments.tournament_id
-        AND u.user_id = auth.uid()
+        AND t.owner_user_id = current_user_id()
     )
 );
 
 -- Team policies
 CREATE POLICY "Team owners can manage their teams" ON teams
 FOR ALL TO authenticated
-USING (owner_user_id = auth.uid());
+USING (owner_user_id = current_user_id());
 
 CREATE POLICY "Admins can view teams in their city/sport" ON teams
 FOR SELECT TO authenticated
 USING (
     EXISTS (
-        SELECT 1 FROM users 
-        WHERE users.user_id = auth.uid() 
-        AND users.role IN ('super_admin', 'admin')
-        AND (users.role = 'super_admin' OR 
-             (users.city_id = teams.city_id AND users.sport_id = teams.sport_id))
+        SELECT 1 FROM user_profiles up
+        JOIN user_roles_by_city_sport ur ON up.user_id = ur.user_id
+        WHERE up.user_id = current_user_id() 
+        AND ur.role_name IN ('super_admin', 'city_admin')
+        AND (ur.role_name = 'super_admin' OR 
+             (ur.city_id = teams.city_id AND ur.sport_id = teams.sport_id))
+        AND ur.is_active = TRUE
     )
 );
 
@@ -437,10 +446,11 @@ USING (
 ### Core Domain Models (Go Structs)
 
 ```go
-// UserProfile represents a system user profile
+// UserProfile represents a system user profile with authentication
 type UserProfile struct {
     UserID              uuid.UUID     `json:"user_id" db:"user_id"`
     Email               string        `json:"email" db:"email"`
+    PasswordHash        string        `json:"-" db:"password_hash"` // Never expose in JSON
     FirstName           string        `json:"first_name" db:"first_name"`
     LastName            string        `json:"last_name" db:"last_name"`
     Phone               *string       `json:"phone" db:"phone"`
@@ -452,6 +462,10 @@ type UserProfile struct {
     LastLoginAt         *time.Time    `json:"last_login_at" db:"last_login_at"`
     FailedLoginAttempts int           `json:"failed_login_attempts" db:"failed_login_attempts"`
     LockedUntil         *time.Time    `json:"locked_until" db:"locked_until"`
+    TokenRecovery       *string       `json:"-" db:"token_recovery"` // Never expose in JSON
+    TokenExpirationDate *time.Time    `json:"-" db:"token_expiration_date"` // Never expose in JSON
+    TwoFactorSecret     *string       `json:"-" db:"two_factor_secret"` // Never expose in JSON
+    TwoFactorEnabled    bool          `json:"two_factor_enabled" db:"two_factor_enabled"`
     CreatedAt           time.Time     `json:"created_at" db:"created_at"`
     UpdatedAt           time.Time     `json:"updated_at" db:"updated_at"`
 }
@@ -764,23 +778,25 @@ const useMatchUpdates = (matchId) => {
 sequenceDiagram
     participant Client
     participant API Gateway
-    participant Supabase Auth
-    participant Backend Service
+    participant Auth Service
+    participant Database
     
-    Client->>API Gateway: Login Request
-    API Gateway->>Supabase Auth: Validate Credentials
-    Supabase Auth->>API Gateway: JWT Token + User Data
-    API Gateway->>Backend Service: Get User Role/Permissions
-    Backend Service->>API Gateway: User Profile + Permissions
+    Client->>API Gateway: Login Request (email/password)
+    API Gateway->>Auth Service: Validate Credentials
+    Auth Service->>Database: Query user_profiles with password_hash
+    Database->>Auth Service: User Data
+    Auth Service->>Auth Service: Verify password_hash + 2FA if enabled
+    Auth Service->>Database: Update last_login_at, reset failed_attempts
+    Auth Service->>API Gateway: JWT Token + User Profile
     API Gateway->>Client: JWT + User Profile
     
     Note over Client: Store JWT securely
     
     Client->>API Gateway: API Request + JWT
     API Gateway->>API Gateway: Validate JWT
-    API Gateway->>API Gateway: Check RBAC Permissions
+    API Gateway->>API Gateway: Check RBAC Permissions via user_roles_by_city_sport
     API Gateway->>Backend Service: Authorized Request
-    Backend Service->>Backend Service: Apply RLS
+    Backend Service->>Backend Service: Apply RLS with current_user_id()
     Backend Service->>API Gateway: Response
     API Gateway->>Client: Response
 ```
@@ -788,15 +804,16 @@ sequenceDiagram
 ### Security Layers
 
 1. **Transport Security**: HTTPS/TLS 1.3
-2. **Authentication**: Supabase Auth + JWT + 2FA
+2. **Authentication**: Custom JWT + password_hash + 2FA TOTP
 3. **Authorization**: RBAC + RLS + View-level permissions
 4. **Input Validation**: Server-side validation
 5. **Output Encoding**: XSS prevention
 6. **CSRF Protection**: Token-based
 7. **Rate Limiting**: Per-user/IP limits
-8. **Account Security**: Login attempt limiting, account locking
+8. **Account Security**: Login attempt limiting, progressive locking
 9. **Audit Logging**: Security event logging
 10. **Session Management**: Single session per device, automatic logout
+11. **Password Recovery**: Secure token-based with expiration
 
 ### Enhanced Authentication Features
 

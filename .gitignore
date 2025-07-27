@@ -23,10 +23,38 @@ dist-ssr
 *.sln
 *.sw?
 
-
 pnpm-lock.yaml
 yarn.lock
 package-lock.json
 bun.lockb
-.env
 back-end/.env
+
+# Go binaries and builds
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+bin/
+build/
+
+# Environment files (CRITICAL: Never commit database credentials)
+.env
+.env.local
+.env.production
+.env.staging
+
+# Database files
+*.sql.backup
+*.dump
+database_backup_*
+
+# Go workspace
+go.work
+go.work.sum
+
+# Temporary files
+tmp/
+temp/

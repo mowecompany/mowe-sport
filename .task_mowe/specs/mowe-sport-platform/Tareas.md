@@ -1,5 +1,8 @@
 # Guía de Tareas para el Desarrollo de Mowe Sport
 
+En la tarea 4 de la database: El único problema que queda es el tipo de retorno de las funciones de supervisión de seguridad pero todo ya esta funcional.
+
+
 ## Stack:
 ### database: 
  - Supabase - PostgreSQL
