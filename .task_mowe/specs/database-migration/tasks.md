@@ -48,7 +48,8 @@
 
 ### Fase 3: Implementación de Funciones del Sistema
 
-- [ ] 5. Implementar funciones de estadísticas y cálculos
+- [x] 5. Implementar funciones de estadísticas y cálculos
+
   - Crear función recalculate_player_statistics para estadísticas individuales
   - Implementar función recalculate_team_statistics para métricas de equipo
   - Crear función update_tournament_standings para tablas de posiciones
@@ -56,7 +57,8 @@
   - Testing de precisión de cálculos con datos de prueba
   - _Requisitos: 7.1, 7.2, 7.3_
 
-- [ ] 6. Optimización de rendimiento e índices
+- [x] 6. Optimización de rendimiento e índices
+
   - Crear índices optimizados para consultas frecuentes
   - Implementar índices compuestos para consultas multi-tabla
   - Crear índices de texto completo para búsquedas avanzadas
@@ -66,7 +68,8 @@
 
 ### Fase 4: Testing y Validación
 
-- [ ] 7. Testing y validación completa del sistema
+- [x] 7. Testing y validación completa del sistema
+
   - Testing de integridad de todos los datos del sistema
   - Validación de funcionamiento de todas las funciones implementadas
   - Testing de políticas RLS con diferentes roles de usuario
@@ -79,7 +82,8 @@
 
 ### Fase 5: Documentación y Preparación
 
-- [ ] 8. Generar documentación completa del sistema
+- [x] 8. Generar documentación completa del sistema
+
   - Crear documentación técnica de la arquitectura de base de datos
   - Documentar políticas RLS y funciones de seguridad
   - Generar guía de troubleshooting para problemas comunes
