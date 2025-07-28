@@ -11,8 +11,10 @@ import TeamsPage from "@/pages/main/teams";
 
 // Administration pages
 import AdminsPage from "@/pages/administration/admins";
+import SuperAdminPage from "@/pages/administration/super_admin";
 import PlayersPage from "@/pages/administration/players";
 import UsersPage from "@/pages/administration/users";
+import RefereesPage from "./pages/administration/referees";
 
 function App() {
   return (
@@ -29,8 +31,10 @@ function App() {
       <Route element={<TeamsPage />} path="/main/teams" />
 
       {/* Administration routes */}
+      <Route element={<SuperAdminPage />} path="/administration/super_admin" />
       <Route element={<AdminsPage />} path="/administration/admins" />
       <Route element={<PlayersPage />} path="/administration/players" />
+      <Route element={<RefereesPage />} path="/administration/referees" />
       <Route element={<UsersPage />} path="/administration/users" />
     </Routes>
   );

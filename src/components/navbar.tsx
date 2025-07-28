@@ -16,8 +16,8 @@ import { link as linkStyles } from "@heroui/theme";
 import clsx from "clsx";
 
 import { siteConfig } from "@/config/site";
-import { ThemeSwitch } from "@/components/theme-switch";
-import { NavbarDropdown } from "@/components/navbar-dropdown";
+import { ThemeSwitch } from "@/components/theme_switch";
+import { NavbarDropdown } from "@/components/navbar_dropdown";
 import { GithubIcon, SearchIcon } from "@/components/icons";
 
 export const Navbar = () => {

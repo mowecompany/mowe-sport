@@ -21,7 +21,6 @@
   - Crear trigger para updated_at automático
   - _Requisitos: 3.1, 3.5, 8.1_
 
-
 - [x] 2. Configurar políticas de Row Level Security (RLS)
   - Habilitar RLS en todas las tablas sensibles
   - Implementar políticas para aislamiento multi-tenencia por ciudad/deporte
@@ -29,7 +28,6 @@
   - Implementar función current_user_id() para RLS
   - Probar políticas con diferentes usuarios y roles
   - _Requisitos: 1.1, 1.2, 5.1, 5.4_
-
 
 - [x] 3. Implementar funciones de autenticación y seguridad
   - Crear funciones para validación de password_hash
@@ -41,7 +39,7 @@
 
   - _Requisitos: 3.1, 3.5, 9.1, 9.4_
 
-- [ ] 4. Crear datos iniciales del sistema
+- [x] 4. Crear datos iniciales del sistema
   - Insertar ciudades y deportes básicos para el sistema
   - Crear usuario super_admin inicial con credenciales seguras
   - Implementar datos de prueba para validación

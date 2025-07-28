@@ -58,6 +58,11 @@ export const siteConfig: SiteConfig = {
       href: "#",
       items: [
         {
+          label: "Super Admin",
+          href: "/administration/super_admin",
+          icon: React.createElement(AdminIcon, { className: "w-4 h-4" }),
+        },
+        {
           label: "Admin",
           href: "/administration/admins",
           icon: React.createElement(AdminIcon, { className: "w-4 h-4" }),
@@ -65,6 +70,11 @@ export const siteConfig: SiteConfig = {
         {
           label: "Players",
           href: "/administration/players",
+          icon: React.createElement(PlayersIcon, { className: "w-4 h-4" }),
+        },
+        {
+          label: "Referees",
+          href: "/administration/referees",
           icon: React.createElement(PlayersIcon, { className: "w-4 h-4" }),
         },
         {
