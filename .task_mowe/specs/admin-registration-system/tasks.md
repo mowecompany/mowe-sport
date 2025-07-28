@@ -24,9 +24,6 @@
 
 - [x] 2. Implementar validación frontend avanzada
 
-
-
-
   - Crear hook useFormValidation para manejo de errores
   - Implementar validación de email único (debounced API call)
   - Agregar validación de formato de identificación según país
@@ -35,7 +32,7 @@
   - Agregar indicadores visuales de validación (success/error states)
   - _Requisitos: 5.1, 5.2, 5.3, 5.4_
 
-- [ ] 3. Crear servicios API frontend
+- [x] 3. Crear servicios API frontend
 
   - Implementar adminService.registerAdmin() con manejo de errores
   - Crear citiesService.getCities() con cache local
@@ -45,7 +42,7 @@
   - Crear tipos TypeScript para todas las respuestas API
   - _Requisitos: 2.1, 2.2, 6.1, 6.5_
 
-- [ ] 4. Mejorar UX del formulario de registro
+- [x] 4. Mejorar UX del formulario de registro
 
   - Implementar loading states durante envío del formulario
   - Agregar confirmación de registro exitoso con detalles

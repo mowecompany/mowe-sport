@@ -231,4 +231,6 @@ export const commonValidationRules = {
       if (!validator.isURL(value, { require_protocol: true })) {
         return 'URL inválida. Debe incluir http:// o https://';
       }
-    
+    }
+  }
+}

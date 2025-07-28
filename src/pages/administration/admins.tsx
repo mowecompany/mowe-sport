@@ -17,9 +17,14 @@ import { useNotification } from "@/hooks/useNotification";
 import { useFormValidation, commonValidationRules } from "@/hooks/useFormValidation";
 import { usePhoneValidation } from "@/hooks/usePhoneValidation";
 import { useIdentificationValidation } from "@/hooks/useIdentificationValidation";
-import { adminService, type AdminRegistrationData } from "@/services/adminService";
-import { citiesService, type City } from "@/services/citiesService";
-import { sportsService, type Sport } from "@/services/sportsService";
+import {
+  adminService,
+  citiesService,
+  sportsService,
+  type AdminRegistrationData,
+  type City,
+  type Sport
+} from "@/services";
 import { Notification } from "@/components/Notification";
 import { ValidationHelp } from "@/components/ValidationHelp";
 import { FormValidationProgress } from "@/components/FormValidationProgress";
@@ -42,6 +47,12 @@ export default function AdmisPage() {
   const [sports, setSports] = useState<Sport[]>([]);
   const [loadingData, setLoadingData] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState<{
+    show: boolean;
+    adminData?: any;
+  }>({ show: false });
+  const [formDraft, setFormDraft] = useState<any>(null);
 
   // Validation hooks
   const { validationState: emailValidation, validateEmailUniqueness, isValidEmailFormat } = useEmailValidation();
@@ -135,11 +146,14 @@ export default function AdmisPage() {
   const handleInputChange = (field: string, value: string) => {
     // Sanitize input
     const sanitizedValue = sanitizeInput(value);
-
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       [field]: sanitizedValue
-    }));
+    };
+    setFormData(newFormData);
+
+    // Auto-save draft to localStorage
+    localStorage.setItem('admin_registration_draft', JSON.stringify(newFormData));
 
     // Clear field error when user starts typing
     clearFieldError(field);
@@ -206,12 +220,46 @@ export default function AdmisPage() {
     loadCitiesAndSports();
   }, []);
 
-  const handleSubmit = async () => {
+  // Load draft when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      const savedDraft = localStorage.getItem('admin_registration_draft');
+      if (savedDraft) {
+        try {
+          const draftData = JSON.parse(savedDraft);
+          setFormDraft(draftData);
+        } catch (error) {
+          console.error('Error loading draft:', error);
+        }
+      }
+    }
+  }, [isOpen]);
+
+  // Function to load draft data
+  const loadDraft = () => {
+    if (formDraft) {
+      setFormData(formDraft);
+      setFormDraft(null);
+      showSuccess('Borrador cargado', 'Se ha restaurado el borrador guardado automáticamente');
+    }
+  };
+
+  // Function to clear draft
+  const clearDraft = () => {
+    localStorage.removeItem('admin_registration_draft');
+    setFormDraft(null);
+  };
+
+  const handleSubmitClick = () => {
     if (!validateFormData()) {
       showError('Errores de validación', 'Por favor corrija los errores en el formulario');
       return;
     }
+    setShowConfirmModal(true);
+  };
 
+  const handleConfirmedSubmit = async () => {
+    setShowConfirmModal(false);
     setIsSubmitting(true);
     try {
       const registrationData: AdminRegistrationData = {
@@ -228,7 +276,16 @@ export default function AdmisPage() {
 
       const result = await adminService.registerAdmin(registrationData);
 
-      // Reset form on success
+      // Clear draft on successful registration
+      clearDraft();
+
+      // Show success modal with details
+      setRegistrationSuccess({
+        show: true,
+        adminData: result
+      });
+
+      // Reset form
       setFormData({
         first_name: "",
         last_name: "",
@@ -244,12 +301,6 @@ export default function AdmisPage() {
       // Reset all validation states
       validationState.errors = {};
       validationState.touched = {};
-      onOpenChange();
-
-      showSuccess(
-        "Administrador registrado exitosamente",
-        `Se ha enviado un email con las credenciales a ${result.email}`
-      );
 
     } catch (error) {
       console.error("Error registrando admin:", error);
@@ -435,6 +486,37 @@ export default function AdmisPage() {
                 </ModalHeader>
                 <ModalBody>
                   <div className="flex flex-col gap-4">
+                    {/* Draft notification */}
+                    {formDraft && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Icon icon="mdi:content-save-outline" className="w-4 h-4 text-blue-600" />
+                            <span className="text-sm text-blue-800 font-medium">
+                              Borrador guardado automáticamente
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="light"
+                              color="primary"
+                              onPress={loadDraft}
+                            >
+                              Cargar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="light"
+                              color="danger"
+                              onPress={clearDraft}
+                            >
+                              Descartar
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     {/* Form validation progress */}
                     <FormValidationProgress
                       validationState={validationState}
@@ -734,7 +816,7 @@ export default function AdmisPage() {
                   </Button>
                   <Button
                     color="primary"
-                    onPress={handleSubmit}
+                    onPress={handleSubmitClick}
                     isLoading={isSubmitting || emailValidation.isChecking}
                     isDisabled={!validationState.isValid || emailValidation.isChecking || !emailValidation.isValid}
                     startContent={!isSubmitting && !emailValidation.isChecking ? <Icon icon="mdi:account-plus" className="w-4 h-4" /> : null}
@@ -742,6 +824,190 @@ export default function AdmisPage() {
                     {isSubmitting ? "Registrando..." :
                       emailValidation.isChecking ? "Validando email..." :
                         "Registrar Admin"}
+                  </Button>
+                </ModalFooter>
+              </>
+            )}
+          </ModalContent>
+        </Modal>
+
+        {/* Confirmation Modal */}
+        <Modal
+          isOpen={showConfirmModal}
+          onOpenChange={setShowConfirmModal}
+          placement="center"
+          size="md"
+        >
+          <ModalContent>
+            {(onClose) => (
+              <>
+                <ModalHeader className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <Icon icon="mdi:help-circle-outline" className="w-5 h-5 text-warning" />
+                    <h3 className="text-lg font-semibold">Confirmar Registro</h3>
+                  </div>
+                </ModalHeader>
+                <ModalBody>
+                  <div className="flex flex-col gap-4">
+                    <p className="text-gray-700">
+                      ¿Está seguro de que desea registrar al siguiente administrador?
+                    </p>
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Nombre:</span>
+                        <span>{formData.first_name} {formData.last_name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Email:</span>
+                        <span>{formData.email}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Ciudad:</span>
+                        <span>{cities.find(c => c.city_id === formData.city_id)?.name || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Deporte:</span>
+                        <span>{sports.find(s => s.sport_id === formData.sport_id)?.name || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                      <div className="flex items-start gap-2">
+                        <Icon icon="mdi:information-outline" className="w-4 h-4 text-yellow-600 mt-0.5" />
+                        <div className="text-sm text-yellow-800">
+                          <p className="font-medium">Importante:</p>
+                          <p>Se generará una contraseña temporal y se enviará por email al administrador.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </ModalBody>
+                <ModalFooter>
+                  <Button
+                    color="danger"
+                    variant="light"
+                    onPress={onClose}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    color="primary"
+                    onPress={handleConfirmedSubmit}
+                    isLoading={isSubmitting}
+                    startContent={!isSubmitting ? <Icon icon="mdi:check" className="w-4 h-4" /> : null}
+                  >
+                    {isSubmitting ? "Registrando..." : "Confirmar Registro"}
+                  </Button>
+                </ModalFooter>
+              </>
+            )}
+          </ModalContent>
+        </Modal>
+
+        {/* Success Modal */}
+        <Modal
+          isOpen={registrationSuccess.show}
+          onOpenChange={(open) => {
+            if (!open) {
+              setRegistrationSuccess({ show: false });
+              onOpenChange(); // Close the main modal too
+            }
+          }}
+          placement="center"
+          size="lg"
+          isDismissable={false}
+          hideCloseButton={false}
+        >
+          <ModalContent>
+            {(onClose) => (
+              <>
+                <ModalHeader className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-green-100 rounded-full">
+                      <Icon icon="mdi:check-circle" className="w-6 h-6 text-green-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-green-800">¡Registro Exitoso!</h3>
+                  </div>
+                </ModalHeader>
+                <ModalBody>
+                  <div className="flex flex-col gap-4">
+                    <p className="text-gray-700">
+                      El administrador ha sido registrado exitosamente en el sistema.
+                    </p>
+                    {registrationSuccess.adminData && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h4 className="font-semibold text-green-800 mb-3">Detalles del Registro:</h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-600">ID de Usuario:</span>
+                            <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+                              {registrationSuccess.adminData.user_id}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-600">Nombre:</span>
+                            <span>
+                              {registrationSuccess.adminData.first_name} {registrationSuccess.adminData.last_name}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-600">Email:</span>
+                            <span>{registrationSuccess.adminData.email}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-medium text-gray-600">ID de Asignación:</span>
+                            <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+                              {registrationSuccess.adminData.role_assignment_id}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-start gap-2">
+                        <Icon icon="mdi:email-outline" className="w-5 h-5 text-blue-600 mt-0.5" />
+                        <div className="text-sm text-blue-800">
+                          <p className="font-medium mb-1">Email de Bienvenida Enviado</p>
+                          <p>
+                            Se ha enviado un email con las credenciales temporales y las instrucciones
+                            de acceso al administrador registrado.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <div className="flex items-start gap-2">
+                        <Icon icon="mdi:clock-outline" className="w-5 h-5 text-yellow-600 mt-0.5" />
+                        <div className="text-sm text-yellow-800">
+                          <p className="font-medium mb-1">Próximos Pasos</p>
+                          <ul className="list-disc list-inside space-y-1">
+                            <li>El administrador debe revisar su email</li>
+                            <li>Debe cambiar la contraseña temporal en el primer acceso</li>
+                            <li>Tendrá acceso a las funciones de su ciudad y deporte asignados</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </ModalBody>
+                <ModalFooter>
+                  <Button
+                    color="primary"
+                    onPress={onClose}
+                    startContent={<Icon icon="mdi:check" className="w-4 h-4" />}
+                  >
+                    Entendido
+                  </Button>
+                  <Button
+                    color="secondary"
+                    variant="light"
+                    onPress={() => {
+                      // Reset and open new registration
+                      onClose();
+                      setTimeout(() => onOpen(), 100);
+                    }}
+                    startContent={<Icon icon="mdi:plus" className="w-4 h-4" />}
+                  >
+                    Registrar Otro
                   </Button>
                 </ModalFooter>
               </>
