@@ -2,16 +2,16 @@ package server
 
 import (
 	"context"
+	"mowesport/internal/handlers"
+	"mowesport/internal/middleware"
 	"mowesport/internal/models"
 	"net/http"
 	"strings"
-
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -23,7 +23,7 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/api/test-db", s.handleTestDB)
 
 	// CORS configuration
-	s.router.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+	s.router.Use(echomiddleware.CORSWithConfig(echomiddleware.CORSConfig{
 		AllowOrigins: []string{"http://localhost:5173"},
 		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},
 	}))
@@ -31,15 +31,52 @@ func (s *Server) setupRoutes() {
 	// API routes group
 	api := s.router.Group("/api")
 
+	// Public routes
+	api.GET("/cities", s.handleGetCities)
+	api.GET("/sports", s.handleGetSports)
+
+	// JWT configuration
+	jwtConfig := middleware.NewJWTConfig(s.config.JWTSecret)
+
 	// Auth routes
 	auth := api.Group("/auth")
-	auth.POST("/login", s.handleLogin)
-	auth.POST("/signup", s.handleSignup)
+	authHandler := handlers.NewAuthHandler(s.db, s.config.JWTSecret)
+
+	// Public auth endpoints
+	auth.POST("/login", authHandler.Login)
+	auth.POST("/signup", s.handleSignup) // Keep existing signup for now
+	auth.POST("/forgot-password", authHandler.RequestPasswordRecovery)
+	auth.POST("/reset-password", authHandler.ResetPassword)
+	auth.POST("/refresh", authHandler.RefreshToken)
+
+	// Protected auth endpoints (require authentication)
+	authProtected := auth.Group("")
+	authProtected.Use(jwtConfig.JWTMiddleware())
+	authProtected.POST("/logout", authHandler.Logout)
+	authProtected.POST("/2fa/setup", authHandler.Setup2FA)
+	authProtected.POST("/2fa/verify", authHandler.Verify2FA)
+	authProtected.POST("/2fa/disable", authHandler.Disable2FA)
 
 	// Protected routes
 	protected := api.Group("/protected")
-	protected.Use(echojwt.JWT([]byte("your-secret-key")))
+	protected.Use(jwtConfig.JWTMiddleware())
 	protected.GET("/profile", s.handleProfile) // Example protected route
+
+	// Admin routes (require authentication)
+	admin := api.Group("/admin")
+	admin.Use(jwtConfig.JWTMiddleware())
+
+	// Import handlers
+	adminHandler := handlers.NewAdminHandler(s.db)
+
+	// Admin registration endpoint (requires super admin)
+	admin.POST("/register", middleware.RequireSuperAdminRole()(adminHandler.RegisterAdmin))
+
+	// Email validation endpoint (requires authentication)
+	admin.GET("/validate-email", adminHandler.ValidateEmail)
+
+	// Admin list endpoint (requires super admin)
+	admin.GET("/list", middleware.RequireSuperAdminRole()(adminHandler.GetAdminList))
 }
 
 func (s *Server) handleHealthCheck(c echo.Context) error {
@@ -68,105 +105,222 @@ func (s *Server) handleTestDB(c echo.Context) error {
 func (s *Server) handleLogin(c echo.Context) error {
 	var req models.LoginRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Invalid request body",
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "INVALID_REQUEST_BODY",
+				"message": "Invalid request body",
+			},
 		})
 	}
 
-	// Buscar usuario por email
-	var user models.User
-	var hashedPassword string
+	// Search user by email in user_profiles table
+	var userProfile models.UserProfile
 	err := s.db.GetConnection().QueryRow(
 		context.Background(),
-		"SELECT id, email, password_hash FROM users WHERE email = $1",
+		`SELECT user_id, email, password_hash, first_name, last_name, primary_role, 
+		 is_active, account_status, failed_login_attempts, locked_until 
+		 FROM user_profiles WHERE email = $1`,
 		req.Email,
-	).Scan(&user.ID, &user.Email, &hashedPassword)
+	).Scan(&userProfile.UserID, &userProfile.Email, &userProfile.PasswordHash,
+		&userProfile.FirstName, &userProfile.LastName, &userProfile.PrimaryRole,
+		&userProfile.IsActive, &userProfile.AccountStatus,
+		&userProfile.FailedLoginAttempts, &userProfile.LockedUntil)
 
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]string{
-			"error":   "User not found",
-			"message": "El usuario no se encuentra registrado",
+		return c.JSON(http.StatusNotFound, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "USER_NOT_FOUND",
+				"message": "User not found",
+			},
 		})
 	}
 
-	// Verificar contraseña
-	if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(req.Password)); err != nil {
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error":   "Invalid credentials",
-			"message": "Las credenciales son incorrectas",
+	// Check if account is active
+	if !userProfile.IsActive {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "ACCOUNT_INACTIVE",
+				"message": "Account is inactive",
+			},
 		})
 	}
 
-	// Generar JWT
+	// Check account status
+	if userProfile.AccountStatus != models.AccountStatusActive {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "ACCOUNT_" + strings.ToUpper(userProfile.AccountStatus),
+				"message": "Account is " + userProfile.AccountStatus,
+			},
+		})
+	}
+
+	// Check if account is locked
+	if userProfile.LockedUntil != nil && time.Now().Before(*userProfile.LockedUntil) {
+		return c.JSON(http.StatusForbidden, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "ACCOUNT_LOCKED",
+				"message": "Account is temporarily locked due to failed login attempts",
+			},
+		})
+	}
+
+	// Verify password
+	if err := bcrypt.CompareHashAndPassword([]byte(userProfile.PasswordHash), []byte(req.Password)); err != nil {
+		// Increment failed login attempts
+		s.db.GetConnection().Exec(
+			context.Background(),
+			"UPDATE user_profiles SET failed_login_attempts = failed_login_attempts + 1 WHERE user_id = $1",
+			userProfile.UserID,
+		)
+
+		return c.JSON(http.StatusUnauthorized, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "INVALID_CREDENTIALS",
+				"message": "Invalid credentials",
+			},
+		})
+	}
+
+	// Reset failed login attempts and update last login
+	s.db.GetConnection().Exec(
+		context.Background(),
+		"UPDATE user_profiles SET failed_login_attempts = 0, locked_until = NULL, last_login_at = NOW() WHERE user_id = $1",
+		userProfile.UserID,
+	)
+
+	// Generate JWT with proper claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":    user.ID,
-		"email": user.Email,
-		"exp":   time.Now().Add(time.Hour * 72).Unix(),
+		"user_id":      userProfile.UserID.String(),
+		"email":        userProfile.Email,
+		"first_name":   userProfile.FirstName,
+		"last_name":    userProfile.LastName,
+		"primary_role": userProfile.PrimaryRole,
+		"exp":          time.Now().Add(time.Hour * 72).Unix(),
+		"iat":          time.Now().Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte("your-secret-key"))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Error generating token",
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "TOKEN_GENERATION_ERROR",
+				"message": "Error generating token",
+			},
 		})
 	}
 
-	return c.JSON(http.StatusOK, models.LoginResponse{
-		ID:    user.ID,
-		Email: user.Email,
-		Token: tokenString,
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"data": models.LoginResponse{
+			UserID:      userProfile.UserID,
+			Email:       userProfile.Email,
+			FirstName:   userProfile.FirstName,
+			LastName:    userProfile.LastName,
+			PrimaryRole: userProfile.PrimaryRole,
+			Token:       tokenString,
+			ExpiresIn:   72 * 3600, // 72 hours in seconds
+		},
 	})
 }
 
 func (s *Server) handleSignup(c echo.Context) error {
 	var req models.SignupRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Invalid request body",
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "INVALID_REQUEST_BODY",
+				"message": "Invalid request body",
+			},
 		})
 	}
 
-	// Validar campos requeridos
-	if req.Name == "" || req.Email == "" || req.Password == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Name, email and password are required",
+	// Validate required fields
+	if req.FirstName == "" || req.LastName == "" || req.Email == "" || req.Password == "" {
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "MISSING_REQUIRED_FIELDS",
+				"message": "First name, last name, email and password are required",
+			},
 		})
 	}
 
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Error processing password",
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "PASSWORD_HASH_ERROR",
+				"message": "Error processing password",
+			},
 		})
 	}
 
-	// Insert user into database
-	var user models.User
+	// Insert user into user_profiles table
+	var userProfile models.UserProfile
+	var phone *string
+	if req.Phone != "" {
+		phone = &req.Phone
+	}
+
 	err = s.db.GetConnection().QueryRow(
 		context.Background(),
-		"INSERT INTO users (name, email, password_hash, status, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING id, name, email, created_at, updated_at",
-		req.Name,
+		`INSERT INTO user_profiles (user_id, email, password_hash, first_name, last_name, phone, 
+		 primary_role, is_active, account_status, failed_login_attempts, two_factor_enabled, 
+		 created_at, updated_at) 
+		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()) 
+		 RETURNING user_id, first_name, last_name, email, created_at`,
 		req.Email,
 		string(hashedPassword),
-		true, // status activo por defecto
-	).Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+		req.FirstName,
+		req.LastName,
+		phone,
+		models.RoleClient, // Default role for signup
+		true,              // is_active
+		models.AccountStatusActive,
+		0,     // failed_login_attempts
+		false, // two_factor_enabled
+	).Scan(&userProfile.UserID, &userProfile.FirstName, &userProfile.LastName,
+		&userProfile.Email, &userProfile.CreatedAt)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "unique constraint") || strings.Contains(err.Error(), "duplicate key") {
-			return c.JSON(http.StatusConflict, map[string]string{
-				"error": "Email already exists",
+			return c.JSON(http.StatusConflict, map[string]interface{}{
+				"success": false,
+				"error": map[string]interface{}{
+					"code":    "EMAIL_ALREADY_EXISTS",
+					"message": "Email already exists",
+				},
 			})
 		}
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Error creating user",
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "USER_CREATION_ERROR",
+				"message": "Error creating user",
+			},
 		})
 	}
 
-	return c.JSON(http.StatusCreated, models.SignupResponse{
-		ID:    user.ID,
-		Name:  user.Name,
-		Email: user.Email,
+	return c.JSON(http.StatusCreated, map[string]interface{}{
+		"success": true,
+		"data": models.SignupResponse{
+			UserID:    userProfile.UserID,
+			FirstName: userProfile.FirstName,
+			LastName:  userProfile.LastName,
+			Email:     userProfile.Email,
+			Message:   "User registered successfully",
+		},
 	})
 }
 
@@ -174,4 +328,17 @@ func (s *Server) handleProfile(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "Profile endpoint",
 	})
+}
+
+// Admin registration handlers
+
+// Location handlers
+func (s *Server) handleGetCities(c echo.Context) error {
+	locationHandler := handlers.NewLocationHandler(s.db)
+	return locationHandler.GetCities(c)
+}
+
+func (s *Server) handleGetSports(c echo.Context) error {
+	locationHandler := handlers.NewLocationHandler(s.db)
+	return locationHandler.GetSports(c)
 }

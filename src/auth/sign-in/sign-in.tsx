@@ -10,8 +10,8 @@ import { useInitialTheme } from "@/hooks/useInitialTheme";
 
 export default function SignInPage() {
   useInitialTheme();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("admin@mowesport.com"); // Pre-filled for testing
+  const [password, setPassword] = useState("admin123"); // Pre-filled for testing
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -26,9 +26,9 @@ export default function SignInPage() {
 
     try {
       const result = await authService.signIn(email, password);
-      
+
       if (result.success) {
-        // Navigate to dashboard after successful login
+        // Navigate to admin page after successful login (for testing admin registration)
         navigate("/dashboard");
       } else {
         setError(result.error || result.message);
@@ -123,6 +123,15 @@ export default function SignInPage() {
               {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
             </Button>
           </form>
+
+          {/* Test credentials info */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+            <div className="text-xs text-blue-800">
+              <p className="font-medium mb-1">Credenciales de prueba (Super Admin):</p>
+              <p>Email: admin@mowesport.com</p>
+              <p>Contraseña: admin123</p>
+            </div>
+          </div>
           <div className="text-center mt-6">
             <p className="text-sm text-default-500">
               ¿No tienes una cuenta?{" "}

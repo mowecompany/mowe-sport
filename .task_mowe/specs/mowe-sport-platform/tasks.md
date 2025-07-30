@@ -49,7 +49,8 @@
 
 ### Fase 2: Servicios Core del Backend
 
-- [ ] 5. Desarrollar servicio de autenticación completo
+- [x] 5. Desarrollar servicio de autenticación completo
+
   - Crear endpoints de registro con validación de datos
   - Implementar endpoints de login/logout con JWT personalizado
   - Crear sistema de recuperación de contraseñas

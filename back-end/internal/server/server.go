@@ -1,6 +1,7 @@
 package server
 
 import (
+	"mowesport/internal/config"
 	"mowesport/internal/database"
 	"net/http"
 
@@ -10,10 +11,11 @@ import (
 
 type Server struct {
 	db     *database.Database
+	config *config.Config
 	router *echo.Echo
 }
 
-func NewServer(db *database.Database) *Server {
+func NewServer(db *database.Database, cfg *config.Config) *Server {
 	e := echo.New()
 
 	// Configure minimal logging middleware
@@ -28,6 +30,7 @@ func NewServer(db *database.Database) *Server {
 
 	server := &Server{
 		db:     db,
+		config: cfg,
 		router: e,
 	}
 

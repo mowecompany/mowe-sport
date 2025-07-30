@@ -54,7 +54,7 @@
 
 ### Fase 2: Implementar Backend - Endpoints y Servicios
 
-- [ ] 5. Crear endpoint de registro de administrador
+- [x] 5. Crear endpoint de registro de administrador
 
   - Implementar POST /api/admin/register con validación completa
   - Crear AdminRegistrationRequest struct con validaciones
@@ -64,7 +64,7 @@
   - Crear manejo de errores específicos con códigos HTTP apropiados
   - _Requisitos: 2.1, 2.2, 2.3, 2.4, 6.1, 6.2_
 
-- [ ] 6. Implementar servicio de registro de administrador
+- [x] 6. Implementar servicio de registro de administrador
 
   - Crear AdminRegistrationService con todas las validaciones
   - Implementar generación de contraseña temporal segura (12 chars)
@@ -74,7 +74,7 @@
   - Crear validación de permisos del usuario que registra
   - _Requisitos: 2.5, 3.1, 3.2, 4.1, 4.4, 10.1, 10.2_
 
-- [ ] 7. Implementar validaciones de seguridad backend
+- [x] 7. Implementar validaciones de seguridad backend
 
   - Crear validación exhaustiva de formato de email (RFC 5322)
   - Implementar validación de teléfono internacional
@@ -84,7 +84,10 @@
   - Agregar detección de patrones sospechosos
   - _Requisitos: 5.1, 5.2, 5.3, 5.4, 5.5, 10.5_
 
-- [ ] 8. Crear endpoints auxiliares para formulario
+- [x] 8. Crear endpoints auxiliares para formulario
+
+
+
 
   - Implementar GET /api/cities para cargar ciudades disponibles
   - Crear GET /api/sports para cargar deportes disponibles

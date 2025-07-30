@@ -124,6 +124,79 @@ type Verify2FARequest struct {
 	Code string `json:"code" validate:"required,len=6"`
 }
 
+// Admin registration structs
+type AdminRegistrationRequest struct {
+	FirstName      string `json:"first_name" validate:"required,min=2,max=100"`
+	LastName       string `json:"last_name" validate:"required,min=2,max=100"`
+	Email          string `json:"email" validate:"required,email"`
+	Phone          string `json:"phone,omitempty" validate:"omitempty,min=10,max=20"`
+	Identification string `json:"identification,omitempty" validate:"omitempty,min=5,max=50"`
+	CityID         string `json:"city_id" validate:"required,uuid"`
+	SportID        string `json:"sport_id" validate:"required,uuid"`
+	AccountStatus  string `json:"account_status,omitempty" validate:"omitempty,oneof=active suspended payment_pending disabled"`
+	PhotoURL       string `json:"photo_url,omitempty" validate:"omitempty,url"`
+}
+
+type AdminRegistrationResponse struct {
+	UserID            uuid.UUID `json:"user_id"`
+	FirstName         string    `json:"first_name"`
+	LastName          string    `json:"last_name"`
+	Email             string    `json:"email"`
+	Phone             *string   `json:"phone,omitempty"`
+	Identification    *string   `json:"identification,omitempty"`
+	CityID            uuid.UUID `json:"city_id"`
+	SportID           uuid.UUID `json:"sport_id"`
+	AccountStatus     string    `json:"account_status"`
+	PhotoURL          *string   `json:"photo_url,omitempty"`
+	RoleAssignmentID  uuid.UUID `json:"role_assignment_id"`
+	TemporaryPassword string    `json:"temporary_password,omitempty"` // Only for development/testing
+	Message           string    `json:"message"`
+}
+
+// Email validation response
+type EmailValidationResponse struct {
+	IsValid  bool   `json:"is_valid"`
+	IsUnique bool   `json:"is_unique"`
+	Message  string `json:"message,omitempty"`
+}
+
+// Admin list structs
+type AdminListRequest struct {
+	Page      int    `query:"page" validate:"omitempty,min=1"`
+	Limit     int    `query:"limit" validate:"omitempty,min=1,max=100"`
+	Search    string `query:"search" validate:"omitempty,max=100"`
+	CityID    string `query:"city_id" validate:"omitempty,uuid"`
+	SportID   string `query:"sport_id" validate:"omitempty,uuid"`
+	Status    string `query:"status" validate:"omitempty,oneof=active suspended payment_pending disabled"`
+	SortBy    string `query:"sort_by" validate:"omitempty,oneof=first_name last_name email created_at last_login_at"`
+	SortOrder string `query:"sort_order" validate:"omitempty,oneof=asc desc"`
+}
+
+type AdminSummary struct {
+	UserID        uuid.UUID  `json:"user_id"`
+	Email         string     `json:"email"`
+	FirstName     string     `json:"first_name"`
+	LastName      string     `json:"last_name"`
+	Phone         *string    `json:"phone"`
+	PhotoURL      *string    `json:"photo_url"`
+	AccountStatus string     `json:"account_status"`
+	IsActive      bool       `json:"is_active"`
+	CityName      *string    `json:"city_name"`
+	SportName     *string    `json:"sport_name"`
+	LastLoginAt   *time.Time `json:"last_login_at"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
+type AdminListResponse struct {
+	Admins     []AdminSummary `json:"admins"`
+	Total      int            `json:"total"`
+	Page       int            `json:"page"`
+	Limit      int            `json:"limit"`
+	TotalPages int            `json:"total_pages"`
+	HasNext    bool           `json:"has_next"`
+	HasPrev    bool           `json:"has_prev"`
+}
+
 // User role constants
 const (
 	RoleSuperAdmin      = "super_admin"

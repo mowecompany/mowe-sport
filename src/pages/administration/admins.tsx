@@ -23,7 +23,8 @@ import {
   sportsService,
   type AdminRegistrationData,
   type City,
-  type Sport
+  type Sport,
+  type AccountStatus
 } from "@/services";
 import { Notification } from "@/components/Notification";
 import { ValidationHelp } from "@/components/ValidationHelp";
@@ -39,7 +40,7 @@ export default function AdmisPage() {
     identification: "",
     city_id: "",
     sport_id: "",
-    account_status: "active",
+    account_status: "active" as AccountStatus,
     photo_url: ""
   });
 
@@ -270,7 +271,7 @@ export default function AdmisPage() {
         identification: formData.identification?.trim() || undefined,
         city_id: formData.city_id,
         sport_id: formData.sport_id,
-        account_status: formData.account_status,
+        account_status: formData.account_status as AccountStatus,
         photo_url: formData.photo_url?.trim() || undefined
       };
 
@@ -294,7 +295,7 @@ export default function AdmisPage() {
         identification: "",
         city_id: "",
         sport_id: "",
-        account_status: "active",
+        account_status: "active" as AccountStatus,
         photo_url: ""
       });
 
@@ -325,7 +326,7 @@ export default function AdmisPage() {
 
   return (
     <DefaultLayout>
-      <section className="flex flex-col gap-6 px-4">
+      <section className="flex flex-col gap-6 px-4"> 
         {/* Header */}
         <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
@@ -674,7 +675,7 @@ export default function AdmisPage() {
                           }
                         >
                           {cities.map((city) => (
-                            <SelectItem key={city.city_id} value={city.city_id}>
+                            <SelectItem key={city.city_id}>
                               {city.name} - {city.region}
                             </SelectItem>
                           ))}
@@ -700,7 +701,7 @@ export default function AdmisPage() {
                           }
                         >
                           {sports.map((sport) => (
-                            <SelectItem key={sport.sport_id} value={sport.sport_id}>
+                            <SelectItem key={sport.sport_id}>
                               {sport.name}
                             </SelectItem>
                           ))}
