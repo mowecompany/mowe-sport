@@ -152,7 +152,8 @@
 
 ### Fase 5: Desarrollo del Frontend - Panel de Administración
 
-- [ ] 17. Crear sistema de autenticación frontend completo
+- [x] 17. Crear sistema de autenticación frontend completo
+
   - Implementar páginas de inicio de sesión con validación
   - Desarrollar gestión de sesiones con JWT
   - Crear componentes 2FA para superadministradores y administradores

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@heroui/input";
 import { Button } from "@heroui/button";
 import { Card, CardBody, CardHeader } from "@heroui/card";
@@ -7,10 +7,20 @@ import { useNavigate } from "react-router-dom";
 
 import { title } from "@/components/primitives";
 import { authService, type SignUpData } from "@/services/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { useInitialTheme } from "@/hooks/useInitialTheme";
 
 export default function SignUpPage() {
   useInitialTheme();
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  // Si ya está autenticado, redirigir al dashboard
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,7 +31,6 @@ export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const navigate = useNavigate();
 
   const toggleVisibility = () => setIsVisible(!isVisible);
   const toggleConfirmVisibility = () => setIsConfirmVisible(!isConfirmVisible);

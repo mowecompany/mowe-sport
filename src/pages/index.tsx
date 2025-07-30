@@ -4,9 +4,15 @@ import { button as buttonStyles } from "@heroui/theme";
 import { siteConfig } from "@/config/site";
 import { title, subtitle } from "@/components/primitives";
 import { GithubIcon } from "@/components/icons";
+import { useAuth } from "@/hooks/useAuth";
 import DefaultLayout from "@/layouts/default";
 
 export default function IndexPage() {
+  const { user: currentUser } = useAuth();
+  const userName = currentUser 
+    ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || 'Usuario'
+    : 'Usuario';
+
   return (
     <DefaultLayout>
       <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
@@ -17,7 +23,7 @@ export default function IndexPage() {
             to manage the tournaments of different sports and categories.
           </span>
           <div className={subtitle({ class: "mt-4" })}>
-            Developed by Deivids and Juan José.
+            Hello {userName} 🫡
           </div>
         </div>
         <div className="flex gap-3">

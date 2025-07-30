@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 
 import IndexPage from "@/pages/index";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 // Auth pages
 import SignInPage from "@/auth/sign-in/sign-in";
 import SignUpPage from "@/auth/sign-up/sign-up";
@@ -16,26 +17,104 @@ import PlayersPage from "@/pages/administration/players";
 import UsersPage from "@/pages/administration/users";
 import RefereesPage from "./pages/administration/referees";
 
+// Profile and Settings pages
+import ProfilePage from "@/pages/profile/ProfilePage";
+import SettingsPage from "@/pages/settings/SettingsPage";
+
 function App() {
   return (
     <Routes>
-      {/* Auth routes */}
-      <Route element={<SignInPage />} path="/" />
-      <Route element={<SignUpPage />} path="/auth/sign-up" />
+      {/* Auth routes - Manejan su propia lógica de redirección */}
+      <Route path="/" element={<SignInPage />} />
+      <Route path="/auth/sign-up" element={<SignUpPage />} />
       
-      {/* Dashboard route */}
-      <Route element={<IndexPage />} path="/dashboard" />
+      {/* Dashboard route - Requiere autenticación */}
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute requireAuth={true}>
+            <IndexPage />
+          </ProtectedRoute>
+        } 
+      />
       
-      {/* Main routes */}
-      <Route element={<SportsPage />} path="/main/sports" />
-      <Route element={<TeamsPage />} path="/main/teams" />
+      {/* Main routes - Requieren autenticación */}
+      <Route 
+        path="/main/sports" 
+        element={
+          <ProtectedRoute requireAuth={true}>
+            <SportsPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/main/teams" 
+        element={
+          <ProtectedRoute requireAuth={true}>
+            <TeamsPage />
+          </ProtectedRoute>
+        } 
+      />
 
-      {/* Administration routes */}
-      <Route element={<SuperAdminPage />} path="/administration/super_admin" />
-      <Route element={<AdminsPage />} path="/administration/admins" />
-      <Route element={<PlayersPage />} path="/administration/players" />
-      <Route element={<RefereesPage />} path="/administration/referees" />
-      <Route element={<UsersPage />} path="/administration/users" />
+      {/* Administration routes - Requieren autenticación */}
+      <Route 
+        path="/administration/super_admin" 
+        element={
+          <ProtectedRoute requireAuth={true}>
+            <SuperAdminPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/administration/admins" 
+        element={
+          <ProtectedRoute requireAuth={true}>
+            <AdminsPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/administration/players" 
+        element={
+          <ProtectedRoute requireAuth={true}>
+            <PlayersPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/administration/referees" 
+        element={
+          <ProtectedRoute requireAuth={true}>
+            <RefereesPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/administration/users" 
+        element={
+          <ProtectedRoute requireAuth={true}>
+            <UsersPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* Profile and Settings routes - Requieren autenticación */}
+      <Route 
+        path="/profile" 
+        element={
+          <ProtectedRoute requireAuth={true}>
+            <ProfilePage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/settings" 
+        element={
+          <ProtectedRoute requireAuth={true}>
+            <SettingsPage />
+          </ProtectedRoute>
+        } 
+      />
     </Routes>
   );
 }

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Kbd } from "@heroui/kbd";
 import { Link } from "@heroui/link";
 import { Input } from "@heroui/input";
-import { Avatar } from "@heroui/avatar";
 import {
   Navbar as HeroUINavbar,
   NavbarBrand,
@@ -18,6 +17,7 @@ import clsx from "clsx";
 import { siteConfig } from "@/config/site";
 import { ThemeSwitch } from "@/components/theme_switch";
 import { NavbarDropdown } from "@/components/navbar_dropdown";
+import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { GithubIcon, SearchIcon } from "@/components/icons";
 
 export const Navbar = () => {
@@ -110,13 +110,7 @@ export const Navbar = () => {
         </NavbarItem>
         <NavbarItem className="hidden lg:flex">{searchInput}</NavbarItem>
         <NavbarItem className="hidden md:flex">
-          <Avatar
-            isBordered
-            color="primary"
-            size="sm"
-            src="https://i.pinimg.com/736x/fa/9c/79/fa9c793b96fd0f3eb868fbfbc46a4dd7.jpg"
-            className="transition-transform"
-          />
+          <UserProfilePopover />
         </NavbarItem>
       </NavbarContent>
 
@@ -125,13 +119,7 @@ export const Navbar = () => {
           <GithubIcon className="text-default-500" />
         </Link>
         <ThemeSwitch />
-        <Avatar
-          isBordered
-          color="primary"
-          size="sm"
-          src="https://i.pinimg.com/736x/fa/9c/79/fa9c793b96fd0f3eb868fbfbc46a4dd7.jpg"
-          className="transition-transform"
-        />
+        <UserProfilePopover />
         <NavbarMenuToggle />
       </NavbarContent>
 

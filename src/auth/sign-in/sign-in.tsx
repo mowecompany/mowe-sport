@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@heroui/input";
 import { Button } from "@heroui/button";
 import { Card, CardBody, CardHeader } from "@heroui/card";
@@ -6,16 +6,25 @@ import { EyeFilledIcon, EyeSlashFilledIcon } from "@heroui/shared-icons";
 import { useNavigate } from "react-router-dom";
 import { title } from "@/components/primitives";
 import { authService } from "@/services/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { useInitialTheme } from "@/hooks/useInitialTheme";
 
 export default function SignInPage() {
   useInitialTheme();
   const [email, setEmail] = useState("admin@mowesport.com"); // Pre-filled for testing
-  const [password, setPassword] = useState("admin123"); // Pre-filled for testing
+  const [password, setPassword] = useState("123456"); // Corregir contraseña de prueba
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
+  // Si ya está autenticado, redirigir al dashboard
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const toggleVisibility = () => setIsVisible(!isVisible);
 
@@ -24,16 +33,23 @@ export default function SignInPage() {
     setIsLoading(true);
     setError("");
 
+    console.log("Attempting login with:", email); // Debug log
+
     try {
       const result = await authService.signIn(email, password);
+      console.log("Login result:", result); // Debug log
 
       if (result.success) {
-        // Navigate to admin page after successful login (for testing admin registration)
-        navigate("/dashboard");
+        console.log("Login successful, navigating to dashboard"); // Debug log
+        // Forzar navegación inmediata sin esperar al useEffect
+        setTimeout(() => {
+          navigate("/dashboard", { replace: true });
+        }, 100);
       } else {
         setError(result.error || result.message);
       }
     } catch (err) {
+      console.error("Login error:", err); // Debug log
       setError("Error al iniciar sesión. Por favor, intenta de nuevo.");
     } finally {
       setIsLoading(false);
@@ -129,7 +145,7 @@ export default function SignInPage() {
             <div className="text-xs text-blue-800">
               <p className="font-medium mb-1">Credenciales de prueba (Super Admin):</p>
               <p>Email: admin@mowesport.com</p>
-              <p>Contraseña: admin123</p>
+              <p>Contraseña: 123456</p>
             </div>
           </div>
           <div className="text-center mt-6">
