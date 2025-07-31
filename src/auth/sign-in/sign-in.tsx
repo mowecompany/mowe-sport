@@ -12,7 +12,7 @@ import { useInitialTheme } from "@/hooks/useInitialTheme";
 export default function SignInPage() {
   useInitialTheme();
   const [email, setEmail] = useState("admin@mowesport.com"); // Pre-filled for testing
-  const [password, setPassword] = useState("123456"); // Corregir contraseña de prueba
+  const [password, setPassword] = useState("admin123"); // Corregir contraseña de prueba
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -145,7 +145,7 @@ export default function SignInPage() {
             <div className="text-xs text-blue-800">
               <p className="font-medium mb-1">Credenciales de prueba (Super Admin):</p>
               <p>Email: admin@mowesport.com</p>
-              <p>Contraseña: 123456</p>
+              <p>Contraseña: admin123</p>
             </div>
           </div>
           <div className="text-center mt-6">

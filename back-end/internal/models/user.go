@@ -216,3 +216,102 @@ const (
 	AccountStatusPaymentPending = "payment_pending"
 	AccountStatusDisabled       = "disabled"
 )
+
+// User management request/response structs
+
+// UserUpdateRequest for updating user profiles
+type UserUpdateRequest struct {
+	FirstName      *string `json:"first_name,omitempty" validate:"omitempty,min=2,max=100"`
+	LastName       *string `json:"last_name,omitempty" validate:"omitempty,min=2,max=100"`
+	Phone          *string `json:"phone,omitempty" validate:"omitempty,min=10,max=20"`
+	Identification *string `json:"identification,omitempty" validate:"omitempty,min=5,max=50"`
+	PhotoURL       *string `json:"photo_url,omitempty" validate:"omitempty,url"`
+	IsActive       *bool   `json:"is_active,omitempty"`
+	AccountStatus  *string `json:"account_status,omitempty" validate:"omitempty,oneof=active suspended payment_pending disabled"`
+}
+
+// RoleAssignmentRequest for assigning roles to users
+type RoleAssignmentRequest struct {
+	UserID   uuid.UUID  `json:"user_id" validate:"required"`
+	CityID   *uuid.UUID `json:"city_id,omitempty"`
+	SportID  *uuid.UUID `json:"sport_id,omitempty"`
+	RoleName string     `json:"role_name" validate:"required,oneof=city_admin tournament_admin owner coach referee player client"`
+}
+
+// ViewPermissionRequest for setting view permissions
+type ViewPermissionRequest struct {
+	UserID    *uuid.UUID `json:"user_id,omitempty"`
+	RoleName  *string    `json:"role_name,omitempty"`
+	ViewName  string     `json:"view_name" validate:"required"`
+	IsAllowed bool       `json:"is_allowed"`
+}
+
+// AccountStatusUpdateRequest for updating account status
+type AccountStatusUpdateRequest struct {
+	Status string `json:"status" validate:"required,oneof=active suspended payment_pending disabled"`
+	Reason string `json:"reason,omitempty"`
+}
+
+// UserListRequest for paginated user listing
+type UserListRequest struct {
+	Page          int    `query:"page" validate:"omitempty,min=1"`
+	Limit         int    `query:"limit" validate:"omitempty,min=1,max=100"`
+	Search        string `query:"search" validate:"omitempty,max=100"`
+	Role          string `query:"role" validate:"omitempty,oneof=super_admin city_admin tournament_admin owner coach referee player client"`
+	AccountStatus string `query:"account_status" validate:"omitempty,oneof=active suspended payment_pending disabled"`
+	IsActive      *bool  `query:"is_active" validate:"omitempty"`
+	SortBy        string `query:"sort_by" validate:"omitempty,oneof=first_name last_name email primary_role created_at last_login_at"`
+	SortOrder     string `query:"sort_order" validate:"omitempty,oneof=asc desc"`
+}
+
+// UserSummary for user list responses
+type UserSummary struct {
+	UserID        uuid.UUID  `json:"user_id"`
+	Email         string     `json:"email"`
+	FirstName     string     `json:"first_name"`
+	LastName      string     `json:"last_name"`
+	Phone         *string    `json:"phone"`
+	PhotoURL      *string    `json:"photo_url"`
+	PrimaryRole   string     `json:"primary_role"`
+	AccountStatus string     `json:"account_status"`
+	IsActive      bool       `json:"is_active"`
+	LastLoginAt   *time.Time `json:"last_login_at"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
+// UserListResponse for paginated user responses
+type UserListResponse struct {
+	Users      []UserSummary `json:"users"`
+	Total      int           `json:"total"`
+	Page       int           `json:"page"`
+	Limit      int           `json:"limit"`
+	TotalPages int           `json:"total_pages"`
+	HasNext    bool          `json:"has_next"`
+	HasPrev    bool          `json:"has_prev"`
+}
+
+// RoleAssignmentResponse for role assignment responses
+type RoleAssignmentResponse struct {
+	RoleAssignmentID uuid.UUID  `json:"role_assignment_id"`
+	UserID           uuid.UUID  `json:"user_id"`
+	CityID           *uuid.UUID `json:"city_id"`
+	SportID          *uuid.UUID `json:"sport_id"`
+	RoleName         string     `json:"role_name"`
+	AssignedByUserID *uuid.UUID `json:"assigned_by_user_id"`
+	IsActive         bool       `json:"is_active"`
+	CreatedAt        time.Time  `json:"created_at"`
+	Message          string     `json:"message"`
+}
+
+// ViewPermissionResponse for view permission responses
+type ViewPermissionResponse struct {
+	PermissionID       uuid.UUID  `json:"permission_id"`
+	UserID             *uuid.UUID `json:"user_id"`
+	RoleName           *string    `json:"role_name"`
+	ViewName           string     `json:"view_name"`
+	IsAllowed          bool       `json:"is_allowed"`
+	ConfiguredByUserID uuid.UUID  `json:"configured_by_user_id"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+	Message            string     `json:"message"`
+}

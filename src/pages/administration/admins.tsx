@@ -14,7 +14,7 @@ import { Icon } from "@iconify/react";
 import React, { useState } from "react";
 import { useEmailValidation } from "@/hooks/useEmailValidation";
 import { useNotification } from "@/hooks/useNotification";
-import { useFormValidation, commonValidationRules } from "@/hooks/useFormValidation";
+import { useFormValidation } from "@/hooks/useFormValidation";
 import { usePhoneValidation } from "@/hooks/usePhoneValidation";
 import { useIdentificationValidation } from "@/hooks/useIdentificationValidation";
 import {
@@ -61,14 +61,72 @@ export default function AdmisPage() {
 
   // Form validation rules
   const validationRules = {
-    first_name: commonValidationRules.name,
-    last_name: commonValidationRules.name,
-    email: commonValidationRules.email,
-    phone: commonValidationRules.phone,
-    identification: commonValidationRules.identification,
+    first_name: {
+      required: true,
+      minLength: 2,
+      maxLength: 100,
+      pattern: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
+      custom: (value: string) => {
+        if (value && value.trim().length < 2) {
+          return "Debe tener al menos 2 caracteres";
+        }
+        return null;
+      }
+    },
+    last_name: {
+      required: true,
+      minLength: 2,
+      maxLength: 100,
+      pattern: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
+      custom: (value: string) => {
+        if (value && value.trim().length < 2) {
+          return "Debe tener al menos 2 caracteres";
+        }
+        return null;
+      }
+    },
+    email: {
+      required: true,
+      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      custom: (value: string) => {
+        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          return "Formato de email inválido";
+        }
+        return null;
+      }
+    },
+    phone: {
+      required: false,
+      pattern: /^\+?[1-9]\d{1,14}$/,
+      custom: (value: string) => {
+        if (value && !/^\+?[1-9]\d{1,14}$/.test(value)) {
+          return "Formato de teléfono inválido";
+        }
+        return null;
+      }
+    },
+    identification: {
+      required: false,
+      minLength: 5,
+      maxLength: 50,
+      custom: (value: string) => {
+        if (value && value.length < 5) {
+          return "Debe tener al menos 5 caracteres";
+        }
+        return null;
+      }
+    },
     city_id: { required: true },
     sport_id: { required: true },
-    photo_url: commonValidationRules.url
+    photo_url: {
+      required: false,
+      custom: (value: string) => {
+        if (value && !value.match(/^https?:\/\/.+/)) {
+          return "URL inválida. Debe incluir http:// o https://";
+        }
+        return null;
+      }
+    }
   };
 
   const {

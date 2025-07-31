@@ -43,7 +43,7 @@ const validationHelp = {
   }
 };
 
-export const ValidationHelp: React.FC<ValidationHelpProps> = ({ type, country = 'CO' }) => {
+export const ValidationHelp: React.FC<ValidationHelpProps> = ({ type, country: _country = 'CO' }) => {
   const help = validationHelp[type];
   
   if (!help) return null;

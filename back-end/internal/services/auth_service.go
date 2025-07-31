@@ -460,3 +460,29 @@ func (s *AuthService) generateRecoveryToken() (string, error) {
 func (s *AuthService) verify2FACode(secret, code string) bool {
 	return totp.Validate(code, secret)
 }
+
+// GetUserProfile retrieves user profile by user ID
+func (s *AuthService) GetUserProfile(ctx context.Context, userID uuid.UUID) (*models.UserProfile, error) {
+	var userProfile models.UserProfile
+	err := s.db.GetConnection().QueryRow(ctx,
+		`SELECT user_id, email, first_name, last_name, phone, identification, 
+		 photo_url, primary_role, is_active, account_status, 
+		 last_login_at, failed_login_attempts, locked_until, 
+		 two_factor_enabled, created_at, updated_at
+		 FROM user_profiles 
+		 WHERE user_id = $1 AND is_active = true`,
+		userID,
+	).Scan(
+		&userProfile.UserID, &userProfile.Email, &userProfile.FirstName, &userProfile.LastName,
+		&userProfile.Phone, &userProfile.Identification, &userProfile.PhotoURL, &userProfile.PrimaryRole,
+		&userProfile.IsActive, &userProfile.AccountStatus, &userProfile.LastLoginAt,
+		&userProfile.FailedLoginAttempts, &userProfile.LockedUntil, &userProfile.TwoFactorEnabled,
+		&userProfile.CreatedAt, &userProfile.UpdatedAt,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	return &userProfile, nil
+}

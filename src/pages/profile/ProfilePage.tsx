@@ -3,14 +3,22 @@ import { Avatar } from "@heroui/avatar";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Chip } from "@heroui/chip";
+import { Badge } from "@heroui/badge";
+import { Divider } from "@heroui/divider";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole, useAccountStatus } from "@/hooks/useUserRole";
 import { title } from "@/components/primitives";
+import { UserDebugInfo } from "@/components/UserDebugInfo";
 import DefaultLayout from "@/layouts/default";
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, isLoading, forceRefresh } = useAuth();
 
-  if (!user) {
+  // Debug logging
+  console.log('ProfilePage - Rendering with:', { user, isLoading });
+
+  if (isLoading) {
+    console.log('ProfilePage - Showing loading state');
     return (
       <DefaultLayout>
         <div className="flex items-center justify-center min-h-screen">
@@ -20,8 +28,55 @@ export default function ProfilePage() {
     );
   }
 
-  const userInitials = `${user.first_name?.charAt(0) || ''}${user.last_name?.charAt(0) || ''}`.toUpperCase();
-  const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+  if (!user) {
+    console.log('ProfilePage - No user data, showing error state');
+    return (
+      <DefaultLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <p className="text-lg text-default-500">No se pudo cargar la información del usuario</p>
+            <p className="text-sm text-default-400 mt-2">Por favor, intenta recargar la página</p>
+            <Button color="primary" onPress={forceRefresh} className="mt-4">
+              Reintentar
+            </Button>
+          </div>
+        </div>
+      </DefaultLayout>
+    );
+  }
+
+  console.log('ProfilePage - Rendering with user data:', user);
+
+  // Debug logging
+  console.log('ProfilePage - User data:', user);
+  console.log('ProfilePage - first_name:', user.first_name);
+  console.log('ProfilePage - last_name:', user.last_name);
+
+  const userInitials = `${user.first_name?.charAt(0) || ''}${user.last_name?.charAt(0) || ''}`.toUpperCase() || 'U';
+  const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Usuario';
+  
+  // Enhanced role detection and formatting
+  let roleInfo, accountStatusInfo;
+  try {
+    const roleHook = useUserRole(user.primary_role);
+    roleInfo = roleHook.roleInfo;
+    accountStatusInfo = useAccountStatus(user.account_status);
+  } catch (error) {
+    console.error('Error with role hooks:', error);
+    roleInfo = { label: 'Usuario', color: 'default' as const, description: 'Usuario del sistema' };
+    accountStatusInfo = { label: 'Activa', color: 'success' as const, description: 'Cuenta activa' };
+  }
+
+  // Debug info for development
+  const debugInfo = {
+    hasFirstName: !!user.first_name,
+    hasLastName: !!user.last_name,
+    firstName: user.first_name,
+    lastName: user.last_name,
+    fullName: fullName,
+    userInitials: userInitials
+  };
+  console.log('ProfilePage - Debug info:', debugInfo);
 
   return (
     <DefaultLayout>
@@ -40,14 +95,17 @@ export default function ProfilePage() {
                   className="w-24 h-24 mb-4"
                   showFallback
                 />
-                <h2 className="text-xl font-semibold">{fullName || 'Usuario'}</h2>
+                <h2 className="text-xl font-semibold">{fullName}</h2>
                 <Chip 
-                  color="primary" 
+                  color={roleInfo.color} 
                   variant="flat" 
                   className="mt-2"
                 >
-                  {user.primary_role?.replace('_', ' ').toUpperCase() || 'USUARIO'}
+                  {roleInfo.label}
                 </Chip>
+                <p className="text-xs text-default-400 mt-1 text-center">
+                  {roleInfo.description}
+                </p>
               </CardHeader>
               <CardBody className="pt-4">
                 <div className="space-y-2 text-sm">
@@ -68,15 +126,68 @@ export default function ProfilePage() {
                     </div>
                   )}
                   <div>
-                    <span className="text-default-500">Estado:</span>
+                    <span className="text-default-500">Estado de cuenta:</span>
                     <Chip 
-                      color={user.account_status === 'active' ? 'success' : 'warning'} 
+                      color={accountStatusInfo.color} 
                       size="sm" 
                       className="ml-2"
                     >
-                      {user.account_status?.toUpperCase() || 'ACTIVO'}
+                      {accountStatusInfo.label}
                     </Chip>
+                    <p className="text-xs text-default-400 mt-1">
+                      {accountStatusInfo.description}
+                    </p>
                   </div>
+                  <div>
+                    <span className="text-default-500">Cuenta creada:</span>
+                    <p className="font-medium">
+                      {new Date(user.created_at).toLocaleDateString('es-ES', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                  {user.last_login_at && (
+                    <div>
+                      <span className="text-default-500">Último acceso:</span>
+                      <p className="font-medium">
+                        {new Date(user.last_login_at).toLocaleDateString('es-ES', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  )}
+                  {user.failed_login_attempts > 0 && (
+                    <div>
+                      <span className="text-default-500">Intentos fallidos:</span>
+                      <Chip 
+                        color={user.failed_login_attempts >= 3 ? 'danger' : 'warning'} 
+                        size="sm" 
+                        className="ml-2"
+                      >
+                        {user.failed_login_attempts}
+                      </Chip>
+                    </div>
+                  )}
+                  {user.locked_until && new Date(user.locked_until) > new Date() && (
+                    <div>
+                      <span className="text-default-500">Cuenta bloqueada hasta:</span>
+                      <p className="font-medium text-danger">
+                        {new Date(user.locked_until).toLocaleDateString('es-ES', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  )}
                   {user.two_factor_enabled && (
                     <div>
                       <span className="text-default-500">2FA:</span>
@@ -152,6 +263,9 @@ export default function ProfilePage() {
               </CardBody>
             </Card>
           </div>
+          
+          {/* Debug component */}
+          <UserDebugInfo />
         </div>
       </section>
     </DefaultLayout>

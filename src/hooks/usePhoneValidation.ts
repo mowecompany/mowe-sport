@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { parsePhoneNumber, isValidPhoneNumber, CountryCode } from 'libphonenumber-js';
+import { parsePhoneNumber, CountryCode } from 'libphonenumber-js';
 
 interface PhoneValidationResult {
   isValid: boolean;

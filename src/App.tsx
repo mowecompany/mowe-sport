@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 
 import IndexPage from "@/pages/index";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AuthLoader } from "@/components/AuthLoader";
 // Auth pages
 import SignInPage from "@/auth/sign-in/sign-in";
 import SignUpPage from "@/auth/sign-up/sign-up";
@@ -23,7 +24,8 @@ import SettingsPage from "@/pages/settings/SettingsPage";
 
 function App() {
   return (
-    <Routes>
+    <AuthLoader>
+      <Routes>
       {/* Auth routes - Manejan su propia lógica de redirección */}
       <Route path="/" element={<SignInPage />} />
       <Route path="/auth/sign-up" element={<SignUpPage />} />
@@ -115,7 +117,8 @@ function App() {
           </ProtectedRoute>
         } 
       />
-    </Routes>
+      </Routes>
+    </AuthLoader>
   );
 }
 

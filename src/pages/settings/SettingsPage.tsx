@@ -3,14 +3,19 @@ import { Button } from "@heroui/button";
 import { Switch } from "@heroui/switch";
 import { Select, SelectItem } from "@heroui/select";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { title } from "@/components/primitives";
 import { ThemeSwitch } from "@/components/theme_switch";
 import DefaultLayout from "@/layouts/default";
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, isLoading, forceRefresh } = useAuth();
 
-  if (!user) {
+  // Debug logging
+  console.log('SettingsPage - Rendering with:', { user, isLoading });
+
+  if (isLoading) {
+    console.log('SettingsPage - Showing loading state');
     return (
       <DefaultLayout>
         <div className="flex items-center justify-center min-h-screen">
@@ -18,6 +23,39 @@ export default function SettingsPage() {
         </div>
       </DefaultLayout>
     );
+  }
+
+  if (!user) {
+    console.log('SettingsPage - No user data, showing error state');
+    return (
+      <DefaultLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <p className="text-lg text-default-500">No se pudo cargar la información del usuario</p>
+            <p className="text-sm text-default-400 mt-2">Por favor, intenta recargar la página</p>
+            <Button color="primary" onPress={forceRefresh} className="mt-4">
+              Reintentar
+            </Button>
+          </div>
+        </div>
+      </DefaultLayout>
+    );
+  }
+
+  console.log('SettingsPage - Rendering with user data:', user);
+
+  // Enhanced role detection for settings access
+  let userCapabilities;
+  try {
+    const roleHook = useUserRole(user.primary_role);
+    userCapabilities = roleHook.capabilities;
+  } catch (error) {
+    console.error('Error with role hook in settings:', error);
+    userCapabilities = {
+      canExportData: false,
+      canDeleteAccount: false,
+      label: 'Usuario'
+    };
   }
 
   return (
@@ -54,8 +92,8 @@ export default function SettingsPage() {
                     defaultSelectedKeys={["es"]}
                     isDisabled
                   >
-                    <SelectItem key="es" value="es">Español</SelectItem>
-                    <SelectItem key="en" value="en">English</SelectItem>
+                    <SelectItem key="es">Español</SelectItem>
+                    <SelectItem key="en">English</SelectItem>
                   </Select>
                 </div>
               </CardBody>
@@ -144,18 +182,31 @@ export default function SettingsPage() {
                     <p>Usuario desde: {new Date(user.created_at).toLocaleDateString()}</p>
                     <p>Último acceso: {user.last_login_at ? new Date(user.last_login_at).toLocaleDateString() : 'N/A'}</p>
                     <p>Estado: {user.account_status?.toUpperCase() || 'ACTIVO'}</p>
+                    <p>Rol: {userCapabilities.label}</p>
+                    {user.failed_login_attempts > 0 && (
+                      <p>Intentos fallidos: {user.failed_login_attempts}</p>
+                    )}
                   </div>
                 </div>
                 
                 <div className="border-t border-divider my-2" />
                 
                 <div className="space-y-2">
-                  <Button variant="bordered" size="sm" isDisabled>
-                    Exportar Datos
-                  </Button>
-                  <Button variant="bordered" size="sm" color="danger" isDisabled>
-                    Eliminar Cuenta
-                  </Button>
+                  {userCapabilities.canExportData && (
+                    <Button variant="bordered" size="sm" isDisabled>
+                      Exportar Datos
+                    </Button>
+                  )}
+                  {userCapabilities.canDeleteAccount && (
+                    <Button variant="bordered" size="sm" color="danger" isDisabled>
+                      Eliminar Cuenta
+                    </Button>
+                  )}
+                  {!userCapabilities.canExportData && !userCapabilities.canDeleteAccount && (
+                    <p className="text-xs text-default-400">
+                      No tienes permisos para realizar acciones de cuenta avanzadas.
+                    </p>
+                  )}
                 </div>
               </CardBody>
             </Card>

@@ -97,19 +97,24 @@ class AuthService extends BaseApiService {
    */
   async signIn(email: string, password: string): Promise<AuthResponse> {
     try {
+      console.log('[AUTH] Attempting login with:', email);
       const loginData: LoginRequest = { email, password };
       const result = await this.post<LoginResponse>('/auth/login', loginData);
 
-      // Store authentication data
-      this.storeAuthData(result);
+      console.log('[AUTH] Login response received:', result);
+      console.log('[AUTH] Login response data:', result.data);
+      console.log('[AUTH] Token from response:', result.data?.token);
+
+      // Store authentication data - pass the data object, not the full response
+      await this.storeAuthData(result.data);
 
       return {
         success: true,
         message: 'Inicio de sesión exitoso',
         data: {
-          id: parseInt(result.user_id),
-          email: result.email,
-          token: result.token
+          id: parseInt(result.data.user_id),
+          email: result.data.email,
+          token: result.data.token
         }
       };
     } catch (error) {
@@ -142,7 +147,7 @@ class AuthService extends BaseApiService {
   async login(data: LoginRequest): Promise<LoginResponse> {
     try {
       const result = await this.post<LoginResponse>('/auth/login', data);
-      this.storeAuthData(result);
+      await this.storeAuthData(result);
       return result;
     } catch (error) {
       console.error('Login error:', error);
@@ -168,6 +173,8 @@ class AuthService extends BaseApiService {
    */
   signOut(): void {
     try {
+      console.log('Starting sign out process...'); // Debug log
+
       // Clear all auth-related data
       localStorage.removeItem(this.TOKEN_KEY);
       localStorage.removeItem('authToken'); // Legacy key
@@ -179,12 +186,40 @@ class AuthService extends BaseApiService {
       localStorage.removeItem('cities_cache');
       localStorage.removeItem('sports_cache');
 
+      // Clear any other potential auth-related keys
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('auth') || key.includes('token') || key.includes('user'))) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        console.log('Removed key:', key); // Debug log
+      });
+
       console.info('User signed out successfully');
 
-      // Emit logout event
+      // Emit logout event BEFORE clearing everything to ensure handlers can access current state
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('auth:signed-out'));
+        
+        // Also emit a storage event to trigger updates in other tabs/components
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: this.TOKEN_KEY,
+          oldValue: 'some_token',
+          newValue: null,
+          storageArea: localStorage
+        }));
       }
+
+      // Force a small delay to ensure all event handlers have processed
+      setTimeout(() => {
+        console.log('Sign out process completed'); // Debug log
+      }, 50);
+
     } catch (error) {
       console.error('Error during sign out:', error);
     }
@@ -195,6 +230,17 @@ class AuthService extends BaseApiService {
    */
   clearAllAuthData(): void {
     this.signOut();
+    
+    // Limpiar también sessionStorage por si acaso
+    sessionStorage.clear();
+    
+    // Limpiar cualquier cookie relacionada con auth
+    document.cookie.split(";").forEach((c) => {
+      document.cookie = c
+        .replace(/^ +/, "")
+        .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
+    
     console.log('All authentication data cleared');
   }
 
@@ -289,7 +335,7 @@ class AuthService extends BaseApiService {
         refresh_token: refreshToken
       });
 
-      this.storeAuthData(result);
+      await this.storeAuthData(result);
       return result;
     } catch (error) {
       console.error('Token refresh error:', error);
@@ -303,7 +349,10 @@ class AuthService extends BaseApiService {
    */
   async getProfile(): Promise<UserProfile> {
     try {
-      const profile = await this.get<UserProfile>('/auth/profile');
+      const profileResponse = await this.get<UserProfile>('/auth/profile');
+      
+      // The backend returns {success: true, data: UserProfile}, so we need to access .data
+      const profile = profileResponse.data || profileResponse;
 
       // Update stored user data
       localStorage.setItem(this.USER_KEY, JSON.stringify(profile));
@@ -315,29 +364,74 @@ class AuthService extends BaseApiService {
     }
   }
 
+  private profilePromise: Promise<UserProfile> | null = null;
+
+  /**
+   * Get current user data with fresh data from server
+   */
+  async getCurrentUserFresh(): Promise<UserProfile | null> {
+    try {
+      if (!this.isAuthenticated()) {
+        console.log('User not authenticated, returning null');
+        return null;
+      }
+
+      // If there's already a profile request in progress, wait for it
+      if (this.profilePromise) {
+        console.log('Profile request already in progress, waiting...');
+        try {
+          return await this.profilePromise;
+        } catch (error) {
+          // If the existing promise fails, clear it and try again
+          this.profilePromise = null;
+        }
+      }
+
+      console.log('Fetching fresh profile data from server...');
+      this.profilePromise = this.getProfile();
+      
+      try {
+        const profile = await this.profilePromise;
+        console.log('Fresh profile data received:', profile);
+        this.profilePromise = null; // Clear the promise after success
+        return profile;
+      } catch (error) {
+        this.profilePromise = null; // Clear the promise after error
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error fetching fresh user data:', error);
+      console.log('Falling back to cached user data');
+      // Return cached data if server request fails
+      const cachedUser = this.getCurrentUser();
+      console.log('Cached user data:', cachedUser);
+      return cachedUser;
+    }
+  }
+
   /**
    * Store authentication data securely
    */
-  private storeAuthData(authData: LoginResponse): void {
+  private async storeAuthData(authData: LoginResponse): Promise<void> {
     try {
-      console.log('Storing auth data:', authData); // Debug log
+      console.log('[AUTH] Storing auth data:', authData);
 
       // Verificar que el token existe y es válido
       if (!authData.token || authData.token === 'undefined') {
-        console.error('Invalid token received from server:', authData.token);
-        // Por ahora, crear un token temporal para permitir el login
-        authData.token = `temp_token_${Date.now()}_${authData.user_id}`;
-        console.log('Created temporary token:', authData.token);
+        console.error('[AUTH] Invalid token received from server:', authData.token);
+        throw new Error('Invalid token received from server');
       }
 
-      // Store tokens
+      console.log('[AUTH] Token received:', authData.token.substring(0, 50) + '...');
+
+      // Store tokens first
       localStorage.setItem(this.TOKEN_KEY, authData.token);
       if (authData.refresh_token) {
         localStorage.setItem(this.REFRESH_TOKEN_KEY, authData.refresh_token);
       }
 
-      // Store user data
-      const userData: UserProfile = {
+      // Store basic user data first (from login response)
+      const basicUserData: UserProfile = {
         user_id: authData.user_id,
         email: authData.email,
         first_name: authData.first_name,
@@ -354,7 +448,7 @@ class AuthService extends BaseApiService {
         updated_at: new Date().toISOString()
       };
 
-      localStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+      localStorage.setItem(this.USER_KEY, JSON.stringify(basicUserData));
 
       // Legacy compatibility
       localStorage.setItem('authToken', authData.token);
@@ -363,9 +457,21 @@ class AuthService extends BaseApiService {
         email: authData.email
       }));
 
-      console.info('Authentication data stored successfully');
+      console.info('Basic authentication data stored successfully');
       console.log('Token stored:', authData.token); // Debug log
-      console.log('User data stored:', userData); // Debug log
+      console.log('Basic user data stored:', basicUserData); // Debug log
+
+      // Try to get complete profile data from server
+      try {
+        const completeProfileResponse = await this.get<UserProfile>('/auth/profile');
+        // The backend returns {success: true, data: UserProfile}, so we need to access .data
+        const completeProfile = completeProfileResponse.data || completeProfileResponse;
+        localStorage.setItem(this.USER_KEY, JSON.stringify(completeProfile));
+        console.log('Complete profile data stored:', completeProfile); // Debug log
+      } catch (profileError) {
+        console.warn('Could not fetch complete profile, using basic data:', profileError);
+        // Continue with basic data if profile fetch fails
+      }
 
       // Emit login event
       if (typeof window !== 'undefined') {

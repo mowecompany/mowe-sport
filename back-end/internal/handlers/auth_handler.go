@@ -439,6 +439,64 @@ func (h *AuthHandler) Disable2FA(c echo.Context) error {
 	})
 }
 
+// GetProfile handles GET /api/auth/profile
+func (h *AuthHandler) GetProfile(c echo.Context) error {
+	// Get user from JWT token
+	user := c.Get("user").(*jwt.Token)
+	claims := user.Claims.(jwt.MapClaims)
+
+	userIDStr, ok := claims["user_id"].(string)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "INVALID_TOKEN",
+				"message": "Invalid user ID in token",
+			},
+		})
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "INVALID_USER_ID",
+				"message": "Invalid user ID format",
+			},
+		})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	profile, err := h.authService.GetUserProfile(ctx, userID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return c.JSON(http.StatusNotFound, map[string]interface{}{
+				"success": false,
+				"error": map[string]interface{}{
+					"code":    "USER_NOT_FOUND",
+					"message": "User profile not found",
+				},
+			})
+		}
+
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "PROFILE_FETCH_FAILED",
+				"message": "Failed to fetch user profile",
+			},
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"data":    profile,
+	})
+}
+
 // Helper methods
 
 func (h *AuthHandler) handleAuthError(c echo.Context, err error) error {

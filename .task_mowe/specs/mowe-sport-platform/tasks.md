@@ -49,7 +49,9 @@
 
 ### Fase 2: Servicios Core del Backend
 
-- [x] 5. Desarrollar servicio de autenticación completo
+- [ ] 5. Desarrollar servicio de autenticación completo
+
+
 
   - Crear endpoints de registro con validación de datos
   - Implementar endpoints de login/logout con JWT personalizado
@@ -59,7 +61,10 @@
   - Implementar middleware de autorización RBAC
   - _Requisitos: 3.1, 3.5, 8.1_
 
-- [ ] 6. Desarrollar servicio de gestión de usuarios y roles
+- [x] 6. Desarrollar servicio de gestión de usuarios y roles
+
+
+
   - Crear endpoints CRUD para user_profiles (solo para admins)
   - Implementar sistema de asignación de roles granulares
   - Crear endpoints para gestión de user_roles_by_city_sport
@@ -163,7 +168,8 @@
   - Implementar mensajes de estado de cuenta (pago pendiente, suspendido, etc.)
   - _Requisitos: 3.1, 3.5, 8.1_
 
-- [ ] 18. Desarrollar sistema avanzado de dashboards basado en roles
+- [x] 18. Desarrollar sistema avanzado de dashboards basado en roles
+
   - Crear interfaces específicas para cada función (superadministrador, administrador de ciudad, propietario, etc.)
   - Implementar navegación contextual basada en permisos granulares
   - Desarrollar sistema dinámico de visualización controlado por el superadministrador

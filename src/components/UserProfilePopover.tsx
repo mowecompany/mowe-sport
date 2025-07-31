@@ -27,16 +27,28 @@ export const UserProfilePopover = () => {
 
   const handleLogout = () => {
     setIsOpen(false);
+    console.log('Logout initiated from popover'); // Debug log
+    
+    // Limpiar todo y navegar
     signOut();
-    navigate('/', { replace: true });
+    
+    // Forzar navegación después de un pequeño delay para asegurar que el signOut se complete
+    setTimeout(() => {
+      navigate('/', { replace: true });
+      // Forzar recarga de la página para limpiar completamente el estado
+      window.location.href = '/';
+    }, 100);
   };
 
   if (!currentUser) {
-    return null;
+    return (
+      <div className="w-8 h-8 rounded-full bg-default-200 animate-pulse" />
+    );
   }
 
-  const userInitials = `${currentUser.first_name?.charAt(0) || ''}${currentUser.last_name?.charAt(0) || ''}`.toUpperCase();
-  const fullName = `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim();
+  const userInitials = `${currentUser.first_name?.charAt(0) || ''}${currentUser.last_name?.charAt(0) || ''}`.toUpperCase() || 'U';
+  const fullName = `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || 'Usuario';
+  const userRole = currentUser.primary_role?.replace('_', ' ').toUpperCase() || 'USUARIO';
 
   return (
     <Popover 
@@ -67,14 +79,19 @@ export const UserProfilePopover = () => {
             />
             <div className="flex flex-col">
               <p className="text-sm font-semibold text-foreground">
-                {fullName || 'Usuario'}
+                {fullName}
               </p>
               <p className="text-xs text-default-500">
                 {currentUser.email}
               </p>
-              <p className="text-xs text-primary capitalize">
-                {currentUser.primary_role?.replace('_', ' ') || 'Usuario'}
+              <p className="text-xs text-primary">
+                {userRole}
               </p>
+              {currentUser.account_status && (
+                <p className="text-xs text-default-400">
+                  Estado: {currentUser.account_status.toUpperCase()}
+                </p>
+              )}
             </div>
           </div>
         </div>

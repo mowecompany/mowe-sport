@@ -35,6 +35,13 @@ class BaseApiService {
   ): Promise<T> {
     const { method, headers = {}, body, retries = this.defaultRetries, timeout = this.defaultTimeout } = config;
     
+    // Add detailed logging
+    const fullUrl = `${this.baseUrl}${endpoint}`;
+    console.log(`[API] ${method} ${fullUrl}`);
+    if (body) {
+      console.log('[API] Request body:', body);
+    }
+    
     // Add default headers
     const defaultHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -44,6 +51,9 @@ class BaseApiService {
     const token = this.getAuthToken();
     if (token) {
       defaultHeaders['Authorization'] = `Bearer ${token}`;
+      console.log('[API] Using auth token:', token.substring(0, 20) + '...');
+    } else {
+      console.log('[API] No auth token available');
     }
 
     let requestConfig: RequestInit = {

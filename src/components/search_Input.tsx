@@ -1,7 +1,7 @@
 import { Input } from "@heroui/input";
 import { SearchIcon } from "@/components/icons";
 
-const searchInput = (
+export const searchInput = (
     <Input
       aria-label="Search"
       classNames={{

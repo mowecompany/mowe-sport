@@ -11,7 +11,6 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
-	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -21,12 +20,6 @@ func (s *Server) setupRoutes() {
 
 	// Test database endpoint
 	s.router.GET("/api/test-db", s.handleTestDB)
-
-	// CORS configuration
-	s.router.Use(echomiddleware.CORSWithConfig(echomiddleware.CORSConfig{
-		AllowOrigins: []string{"http://localhost:5173"},
-		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},
-	}))
 
 	// API routes group
 	api := s.router.Group("/api")
@@ -53,6 +46,7 @@ func (s *Server) setupRoutes() {
 	authProtected := auth.Group("")
 	authProtected.Use(jwtConfig.JWTMiddleware())
 	authProtected.POST("/logout", authHandler.Logout)
+	authProtected.GET("/profile", authHandler.GetProfile)
 	authProtected.POST("/2fa/setup", authHandler.Setup2FA)
 	authProtected.POST("/2fa/verify", authHandler.Verify2FA)
 	authProtected.POST("/2fa/disable", authHandler.Disable2FA)
@@ -77,6 +71,27 @@ func (s *Server) setupRoutes() {
 
 	// Admin list endpoint (requires super admin)
 	admin.GET("/list", middleware.RequireSuperAdminRole()(adminHandler.GetAdminList))
+
+	// User management routes (require authentication)
+	users := api.Group("/users")
+	users.Use(jwtConfig.JWTMiddleware())
+
+	// Import user management handler
+	userHandler := handlers.NewUserManagementHandler(s.db)
+
+	// User CRUD endpoints (require admin permissions)
+	users.GET("", middleware.RequireAdminRole()(userHandler.GetUserList))
+	users.GET("/:id", middleware.RequireAdminRole()(userHandler.GetUserProfile))
+	users.PUT("/:id", middleware.RequireAdminRole()(userHandler.UpdateUserProfile))
+	users.PATCH("/:id/status", middleware.RequireAdminRole()(userHandler.UpdateAccountStatus))
+
+	// Role management endpoints (require admin permissions)
+	users.POST("/roles", middleware.RequireAdminRole()(userHandler.AssignUserRole))
+	users.DELETE("/roles/:roleId", middleware.RequireAdminRole()(userHandler.RevokeUserRole))
+	users.GET("/:id/roles", middleware.RequireAdminRole()(userHandler.GetUserRoles))
+
+	// View permission endpoints (require super admin permissions)
+	users.POST("/permissions", middleware.RequireSuperAdminRole()(userHandler.SetViewPermission))
 }
 
 func (s *Server) handleHealthCheck(c echo.Context) error {
@@ -202,11 +217,12 @@ func (s *Server) handleLogin(c echo.Context) error {
 		"first_name":   userProfile.FirstName,
 		"last_name":    userProfile.LastName,
 		"primary_role": userProfile.PrimaryRole,
+		"type":         "access",
 		"exp":          time.Now().Add(time.Hour * 72).Unix(),
 		"iat":          time.Now().Unix(),
 	})
 
-	tokenString, err := token.SignedString([]byte("your-secret-key"))
+	tokenString, err := token.SignedString([]byte(s.config.JWTSecret))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
 			"success": false,
@@ -217,16 +233,36 @@ func (s *Server) handleLogin(c echo.Context) error {
 		})
 	}
 
+	// Generate refresh token
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": userProfile.UserID.String(),
+		"type":    "refresh",
+		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(), // 7 days
+		"iat":     time.Now().Unix(),
+	})
+
+	refreshTokenString, err := refreshToken.SignedString([]byte(s.config.JWTSecret))
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"success": false,
+			"error": map[string]interface{}{
+				"code":    "REFRESH_TOKEN_GENERATION_ERROR",
+				"message": "Error generating refresh token",
+			},
+		})
+	}
+
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success": true,
 		"data": models.LoginResponse{
-			UserID:      userProfile.UserID,
-			Email:       userProfile.Email,
-			FirstName:   userProfile.FirstName,
-			LastName:    userProfile.LastName,
-			PrimaryRole: userProfile.PrimaryRole,
-			Token:       tokenString,
-			ExpiresIn:   72 * 3600, // 72 hours in seconds
+			UserID:       userProfile.UserID,
+			Email:        userProfile.Email,
+			FirstName:    userProfile.FirstName,
+			LastName:     userProfile.LastName,
+			PrimaryRole:  userProfile.PrimaryRole,
+			Token:        tokenString,
+			RefreshToken: refreshTokenString,
+			ExpiresIn:    72 * 3600, // 72 hours in seconds
 		},
 	})
 }
