@@ -49,9 +49,7 @@
 
 ### Fase 2: Servicios Core del Backend
 
-- [ ] 5. Desarrollar servicio de autenticación completo
-
-
+- [x] 5. Desarrollar servicio de autenticación completo
 
   - Crear endpoints de registro con validación de datos
   - Implementar endpoints de login/logout con JWT personalizado
@@ -61,9 +59,7 @@
   - Implementar middleware de autorización RBAC
   - _Requisitos: 3.1, 3.5, 8.1_
 
-- [x] 6. Desarrollar servicio de gestión de usuarios y roles
-
-
+- [ ] 6. Desarrollar servicio de gestión de usuarios y roles
 
   - Crear endpoints CRUD para user_profiles (solo para admins)
   - Implementar sistema de asignación de roles granulares
@@ -71,6 +67,16 @@
   - Implementar sistema de permisos de vista (user_view_permissions)
   - Crear endpoints para gestión de estado de cuentas
   - _Requisitos: 8.1, 8.2, 8.3, 8.4_
+
+- [x] 6.1 Implementar endpoint de listado de usuarios con filtros avanzados
+  - Crear endpoint GET /api/users con paginación, filtros y búsqueda
+  - Implementar filtros por rol, estado de cuenta, ciudad y deporte
+  - Agregar búsqueda por texto en nombre y email
+  - Implementar ordenamiento por fecha de creación, último acceso, nombre
+  - Aplicar políticas RLS para mostrar solo usuarios autorizados según rol del solicitante
+  - Incluir información de ciudad y deporte en la respuesta cuando aplique
+  - Optimizar consultas con índices apropiados
+  - _Requisitos: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8_
 
 - [ ] 7. Desarrollar servicio de gestión de ciudades y deportes
   - Crear endpoints CRUD para entidades cities y sports
@@ -178,7 +184,12 @@
   - Añadir herramientas de gestión de cuentas para el superadministrador
   - _Requisitos: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 19. Implementar sistema jerárquico de registro de usuarios
+- [x] 19. Implementar sistema jerárquico de registro de usuarios
+
+
+
+
+
   - Crear interfaz Super Admin para registro de Administradores de Ciudad
   - Desarrollar interfaz City Admin para registrar Propietarios y Árbitros
   - Implementar interfaz de Propietario para registrar Jugadores y Entrenadores

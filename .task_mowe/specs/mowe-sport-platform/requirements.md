@@ -110,7 +110,22 @@ Mowe Sport es una plataforma integral para la gestión de torneos deportivos loc
 3. IF se detecten patrones sospechosos THEN el sistema SHALL implementar medidas preventivas
 4. WHEN se requiera investigación THEN el sistema SHALL proveer logs detallados
 
-### Requisito 10: Preparación para Escalabilidad
+### Requisito 10: Sistema de Gestión y Visualización de Usuarios
+
+**User Story:** Como administrador del sistema, quiero poder visualizar, buscar y gestionar todos los usuarios de la plataforma, para mantener control sobre las cuentas y facilitar la administración.
+
+#### Acceptance Criteria
+
+1. WHEN un administrador acceda a la lista de usuarios THEN el sistema SHALL mostrar usuarios paginados con información básica (nombre, email, rol, estado)
+2. WHEN se apliquen filtros de búsqueda THEN el sistema SHALL filtrar por nombre, email, rol, estado de cuenta y ciudad
+3. IF un administrador busca usuarios THEN el sistema SHALL permitir búsqueda por texto en nombre y email
+4. WHEN se ordenen los resultados THEN el sistema SHALL permitir ordenamiento por fecha de creación, último acceso, nombre y email
+5. IF un usuario tiene múltiples roles THEN el sistema SHALL mostrar el rol primario y permitir ver roles adicionales
+6. WHEN se muestren usuarios THEN el sistema SHALL respetar las políticas RLS según el rol del administrador
+7. IF un super administrador accede THEN el sistema SHALL mostrar todos los usuarios del sistema
+8. WHEN un administrador de ciudad accede THEN el sistema SHALL mostrar solo usuarios de su ciudad/deporte asignado
+
+### Requisito 11: Preparación para Escalabilidad
 
 **User Story:** Como arquitecto del sistema, quiero que la plataforma esté preparada para crecer, para soportar múltiples ciudades y miles de usuarios.
 

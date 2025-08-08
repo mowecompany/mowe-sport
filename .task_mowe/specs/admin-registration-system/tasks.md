@@ -84,10 +84,7 @@
   - Agregar detección de patrones sospechosos
   - _Requisitos: 5.1, 5.2, 5.3, 5.4, 5.5, 10.5_
 
-- [x] 8. Crear endpoints auxiliares para formulario
-
-
-
+- [ ] 8. Crear endpoints auxiliares para formulario
 
   - Implementar GET /api/cities para cargar ciudades disponibles
   - Crear GET /api/sports para cargar deportes disponibles

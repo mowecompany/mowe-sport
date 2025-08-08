@@ -21,15 +21,16 @@ import {
   adminService,
   citiesService,
   sportsService,
+  userRegistrationService,
   type AdminRegistrationData,
   type City,
   type Sport,
   type AccountStatus
 } from "@/services";
+import type { UserSummary, UserListRequest } from '@/services/userRegistrationService';
 import { Notification } from "@/components/Notification";
 import { ValidationHelp } from "@/components/ValidationHelp";
 import { FormValidationProgress } from "@/components/FormValidationProgress";
-import { config } from "process";
 
 export default function AdmisPage() {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
@@ -147,7 +148,7 @@ export default function AdmisPage() {
   const { validateIdentificationField, formatIdentification } = useIdentificationValidation('CO');
 
   // Estado para la lista de administradores
-  const [admins, setAdmins] = useState<any[]>([]);
+  const [admins, setAdmins] = useState<UserSummary[]>([]);
   const [loadingAdmins, setLoadingAdmins] = useState(false);
   const [pagination, setPagination] = useState({
     total: 0,
@@ -157,11 +158,14 @@ export default function AdmisPage() {
     page: 1,
     limit: 12
   });
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<UserListRequest>({
+    page: 1,
+    limit: 12,
     search: '',
-    status: '',
-    sortBy: 'created_at',
-    sortOrder: 'desc'
+    role: 'city_admin', // Solo mostrar administradores de ciudad
+    account_status: undefined,
+    sort_by: 'created_at',
+    sort_order: 'desc'
   });
 
   const getStatusColor = (status: string) => {
@@ -265,33 +269,50 @@ export default function AdmisPage() {
   // Load admins when filters change
   React.useEffect(() => {
     loadAdmins();
-  }, [filters, pagination.page]);
+  }, [filters]);
 
   // Función para cargar administradores
   const loadAdmins = async () => {
     setLoadingAdmins(true);
     try {
-      const response = await adminService.getAdmins({
-        page: pagination.page,
-        limit: pagination.limit,
-        search: filters.search,
-        sort_by: filters.sortBy,
-        sort_order: filters.sortOrder as 'asc' | 'desc'
-      });
+      const response = await userRegistrationService.getUsersList(filters);
 
-      setAdmins(response.admins || []);
+      setAdmins(response.users || []);
       setPagination(prev => ({
         ...prev,
         total: response.total || 0,
-        totalPages: response.totalPages || 0,
-        hasNext: response.hasNext || false,
-        hasPrev: response.hasPrev || false
+        totalPages: response.total_pages || 0,
+        hasNext: response.has_next || false,
+        hasPrev: response.has_prev || false
       }));
     } catch (error) {
       console.error("Error loading admins:", error);
       showError('Error', 'No se pudieron cargar los administradores');
     } finally {
       setLoadingAdmins(false);
+    }
+  };
+
+  // Función para manejar cambios de estado
+  const handleStatusChange = async (userId: string, newStatus: AccountStatus) => {
+    try {
+      await userRegistrationService.updateUserStatus(userId, newStatus);
+      showSuccess('Estado Actualizado', 'El estado del administrador ha sido actualizado');
+      loadAdmins();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      showError('Error', 'No se pudo actualizar el estado del administrador');
+    }
+  };
+
+  // Función para regenerar contraseña
+  const handleRegeneratePassword = async (userId: string) => {
+    try {
+      await userRegistrationService.regenerateTemporaryPassword(userId);
+      showSuccess('Contraseña Regenerada', 'Se ha generado una nueva contraseña temporal');
+    } catch (error) {
+      console.error('Error regenerating password:', error);
+      showError('Error', 'No se pudo regenerar la contraseña');
     }
   };
 
@@ -428,28 +449,28 @@ export default function AdmisPage() {
 
             <div className="flex flex-col gap-1">
               <h2 className="text-xl font-semibold">Gestión de Administradores</h2>
-              <p className="text-gray-600">Administra los usuarios con permisos administrativos en el sistema</p>
+              <p className="text-gray-600">Administra los usuarios con permisos administrativos de ciudad en el sistema</p>
             </div>
 
             {/* Actions Bar */}
             <div className="flex flex-col py-4 sm:flex-row gap-4 justify-between items-start sm:items-center">
               <div className="flex gap-2 flex-wrap">
                 <Input
-                  placeholder="Buscar administradores..."
+                  placeholder="Buscar administradores de ciudad..."
                   startContent={<Icon icon="mdi:magnify" className="w-4 h-4 text-gray-400" />}
                   className="max-w-xs"
                   variant="bordered"
                   value={filters.search}
-                  onValueChange={(value) => setFilters(prev => ({ ...prev, search: value }))}
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, search: value, page: 1 }))}
                 />
                 <Select
                   placeholder="Filtrar por estado"
                   className="max-w-xs"
                   variant="bordered"
-                  selectedKeys={filters.status ? [filters.status] : []}
+                  selectedKeys={filters.account_status ? [filters.account_status] : []}
                   onSelectionChange={(keys) => {
-                    const status = Array.from(keys)[0] as string;
-                    setFilters(prev => ({ ...prev, status: status || '' }));
+                    const status = Array.from(keys)[0] as AccountStatus;
+                    setFilters(prev => ({ ...prev, account_status: status || undefined, page: 1 }));
                   }}
                 >
                   <SelectItem key="active">Activo</SelectItem>
@@ -481,16 +502,16 @@ export default function AdmisPage() {
               <div className="flex justify-center items-center py-12">
                 <div className="flex flex-col items-center gap-4">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                  <p className="text-gray-600">Cargando administradores...</p>
+                  <p className="text-gray-600">Cargando administradores de ciudad...</p>
                 </div>
               </div>
             ) : admins.length === 0 ? (
               <Card className="py-12">
                 <CardBody className="text-center">
                   <Icon icon="mdi:account-off" className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-600 mb-2">No hay administradores</h3>
+                  <h3 className="text-lg font-semibold text-gray-600 mb-2">No hay administradores de ciudad</h3>
                   <p className="text-gray-500 mb-4">
-                    {filters.search ? 'No se encontraron administradores con los filtros aplicados' : 'Comienza registrando tu primer administrador'}
+                    {filters.search ? 'No se encontraron administradores de ciudad con los filtros aplicados' : 'Comienza registrando tu primer administrador de ciudad'}
                   </p>
                   {!filters.search && (
                     <Button
@@ -498,7 +519,7 @@ export default function AdmisPage() {
                       startContent={<Icon icon="mdi:plus" className="w-4 h-4" />}
                       onPress={onOpen}
                     >
-                      Registrar Primer Admin
+                      Registrar Primer Admin de Ciudad
                     </Button>
                   )}
                 </CardBody>
@@ -534,11 +555,27 @@ export default function AdmisPage() {
                         <DropdownMenu>
                           <DropdownItem key="view">Ver Detalles</DropdownItem>
                           <DropdownItem key="edit">Editar</DropdownItem>
-                          <DropdownItem key="regenerate">Regenerar Contraseña</DropdownItem>
-                          <DropdownItem key="suspend" className="text-warning">
+                          <DropdownItem
+                            key="regenerate"
+                            onPress={() => handleRegeneratePassword(admin.user_id)}
+                          >
+                            Regenerar Contraseña
+                          </DropdownItem>
+                          <DropdownItem
+                            key="suspend"
+                            className="text-warning"
+                            onPress={() => handleStatusChange(
+                              admin.user_id,
+                              admin.account_status === 'active' ? 'suspended' : 'active'
+                            )}
+                          >
                             {admin.account_status === 'active' ? 'Suspender' : 'Activar'}
                           </DropdownItem>
-                          <DropdownItem key="delete" className="text-danger">
+                          <DropdownItem
+                            key="delete"
+                            className="text-danger"
+                            onPress={() => handleStatusChange(admin.user_id, 'disabled')}
+                          >
                             Eliminar
                           </DropdownItem>
                         </DropdownMenu>
@@ -604,10 +641,10 @@ export default function AdmisPage() {
                     <Select
                       size="sm"
                       className="w-20"
-                      selectedKeys={[pagination.limit.toString()]}
+                      selectedKeys={[filters.limit?.toString() || '12']}
                       onSelectionChange={(keys) => {
                         const limit = parseInt(Array.from(keys)[0] as string);
-                        setPagination(prev => ({ ...prev, limit, page: 1 }));
+                        setFilters(prev => ({ ...prev, limit, page: 1 }));
                       }}
                     >
                       <SelectItem key="12">12</SelectItem>
@@ -618,12 +655,12 @@ export default function AdmisPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-sm text-gray-600">
-                    Página {pagination.page} de {pagination.totalPages}
+                    Página {filters.page || 1} de {pagination.totalPages}
                   </span>
                   <Pagination
                     total={pagination.totalPages}
-                    page={pagination.page}
-                    onChange={(page) => setPagination(prev => ({ ...prev, page }))}
+                    page={filters.page || 1}
+                    onChange={(page) => setFilters(prev => ({ ...prev, page }))}
                     size="sm"
                     showControls
                   />

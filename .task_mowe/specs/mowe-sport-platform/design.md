@@ -119,6 +119,20 @@ graph TB
   - Password policies y recuperación con tokens
   - Bloqueo progresivo de cuentas por intentos fallidos
 
+#### 2.1. User Management Service
+- **Responsabilidad**: CRUD de usuarios, listado y búsqueda
+- **Endpoints**:
+  - `GET /api/users` - Lista paginada de usuarios con filtros
+  - `GET /api/users/:id` - Obtener perfil de usuario específico
+  - `PUT /api/users/:id` - Actualizar perfil de usuario
+  - `PATCH /api/users/:id/status` - Actualizar estado de cuenta
+- **Características**:
+  - Paginación con límites configurables
+  - Filtros por rol, estado, ciudad, deporte
+  - Búsqueda por texto en nombre y email
+  - Ordenamiento por múltiples campos
+  - Aplicación automática de políticas RLS según rol del usuario autenticado
+
 #### 3. Tournament Service
 - **Responsabilidad**: CRUD de torneos, aprobaciones, programación
 - **Características**:

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { title } from "@/components/primitives";
 import DefaultLayout from "@/layouts/default";
 import { Button } from '@heroui/button';
@@ -36,49 +36,17 @@ const REGISTRATION_PERMISSIONS: Record<UserRole, UserRole[]> = {
   client: []
 };
 
-const USER_TYPE_CONFIG = {
-  city_admin: {
-    title: 'Administradores',
-    description: 'Gestión de ciudades y deportes',
-    icon: 'mdi:shield-account',
-    color: 'warning' as const
-  },
-  owner: {
-    title: 'Propietarios de Equipos',
-    description: 'Gestión de equipos y jugadores',
-    icon: 'mdi:account-tie',
-    color: 'primary' as const
-  },
-  referee: {
-    title: 'Árbitros',
-    description: 'Arbitraje de partidos',
-    icon: 'mdi:whistle',
-    color: 'secondary' as const
-  },
-  player: {
-    title: 'Jugadores',
-    description: 'Participación en equipos',
-    icon: 'mdi:account-group',
-    color: 'success' as const
-  },
-  coach: {
-    title: 'Entrenadores',
-    description: 'Entrenamiento y tácticas',
-    icon: 'mdi:account-supervisor',
-    color: 'info' as const
-  }
-} as const;
 
 export default function UsersPage() {
   const { user } = useAuth();
   const { roleInfo } = useUserRole(user?.primary_role);
   const { showSuccess, showError } = useNotification();
-  const { isOpen: isRegistrationOpen, onOpen: onRegistrationOpen, onOpenChange: onRegistrationOpenChange } = useDisclosure();
+  const { isOpen: isRegistrationOpen, onOpenChange: onRegistrationOpenChange } = useDisclosure();
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onOpenChange: onConfirmOpenChange } = useDisclosure();
 
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedUserType, setSelectedUserType] = useState<UserRole | null>(null);
+  const [selectedUserType] = useState<UserRole | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserSummary | null>(null);
   
   // Filters and pagination
@@ -346,6 +314,7 @@ export default function UsersPage() {
                       <DropdownItem key="edit">Editar</DropdownItem>
                       <DropdownItem 
                         key="suspend"
+                        className="text-warning"
                         onPress={() => handleStatusChange(user.user_id, 'suspended')}
                       >
                         Suspender
