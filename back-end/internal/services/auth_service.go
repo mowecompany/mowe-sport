@@ -17,14 +17,16 @@ import (
 )
 
 type AuthService struct {
-	db        *database.Database
-	jwtSecret []byte
+	db                       *database.Database
+	jwtSecret                []byte
+	temporaryPasswordService *TemporaryPasswordService
 }
 
 func NewAuthService(db *database.Database, jwtSecret string) *AuthService {
 	return &AuthService{
-		db:        db,
-		jwtSecret: []byte(jwtSecret),
+		db:                       db,
+		jwtSecret:                []byte(jwtSecret),
+		temporaryPasswordService: NewTemporaryPasswordService(db),
 	}
 }
 
@@ -59,6 +61,16 @@ func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest) (*mod
 		return nil, fmt.Errorf("invalid credentials")
 	}
 
+	// Check if password is temporary and handle accordingly
+	isTemporary, expirationDate, err := s.temporaryPasswordService.IsPasswordTemporary(ctx, userProfile.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check temporary password status: %w", err)
+	}
+
+	if isTemporary && expirationDate != nil && time.Now().After(*expirationDate) {
+		return nil, fmt.Errorf("temporary_password_expired")
+	}
+
 	// Check 2FA if enabled
 	if userProfile.TwoFactorEnabled {
 		if req.TwoFactorCode == "" {
@@ -85,7 +97,7 @@ func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest) (*mod
 		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
 	}
 
-	return &models.LoginResponse{
+	response := &models.LoginResponse{
 		UserID:       userProfile.UserID,
 		Email:        userProfile.Email,
 		FirstName:    userProfile.FirstName,
@@ -94,7 +106,17 @@ func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest) (*mod
 		Token:        accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    3600, // 1 hour
-	}, nil
+	}
+
+	// Add temporary password information to response if applicable
+	if isTemporary {
+		response.RequiresPasswordChange = true
+		if expirationDate != nil {
+			response.PasswordExpiresAt = expirationDate
+		}
+	}
+
+	return response, nil
 }
 
 // RefreshToken generates new access token from refresh token

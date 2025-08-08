@@ -148,6 +148,17 @@ class AuthService extends BaseApiService {
     try {
       const result = await this.post<LoginResponse>('/auth/login', data);
       await this.storeAuthData(result);
+      
+      // Check if password change is required
+      if (result.requires_password_change) {
+        console.info('Temporary password detected, password change required');
+        // Store temporary password status
+        localStorage.setItem('requires_password_change', 'true');
+        if (result.password_expires_at) {
+          localStorage.setItem('password_expires_at', result.password_expires_at.toString());
+        }
+      }
+      
       return result;
     } catch (error) {
       console.error('Login error:', error);
@@ -360,6 +371,69 @@ class AuthService extends BaseApiService {
       return profile;
     } catch (error) {
       console.error('Error fetching profile:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if current user requires password change
+   */
+  requiresPasswordChange(): boolean {
+    return localStorage.getItem('requires_password_change') === 'true';
+  }
+
+  /**
+   * Get password expiration date
+   */
+  getPasswordExpirationDate(): Date | null {
+    const expirationStr = localStorage.getItem('password_expires_at');
+    return expirationStr ? new Date(expirationStr) : null;
+  }
+
+  /**
+   * Check password status from server
+   */
+  async checkPasswordStatus(): Promise<{
+    is_temporary: boolean;
+    requires_change: boolean;
+    expires_at?: string;
+    is_expired?: boolean;
+    time_remaining?: string;
+  }> {
+    try {
+      const response = await this.get<{
+        is_temporary: boolean;
+        requires_change: boolean;
+        expires_at?: string;
+        is_expired?: boolean;
+        time_remaining?: string;
+      }>('/auth/password-status');
+      
+      return response;
+    } catch (error) {
+      console.error('Error checking password status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Change password
+   */
+  async changePassword(data: {
+    current_password: string;
+    new_password: string;
+    confirm_password: string;
+  }): Promise<{ message: string; success: boolean }> {
+    try {
+      const response = await this.post<{ message: string; success: boolean }>('/auth/change-password', data);
+      
+      // Clear temporary password flags on successful change
+      localStorage.removeItem('requires_password_change');
+      localStorage.removeItem('password_expires_at');
+      
+      return response;
+    } catch (error) {
+      console.error('Error changing password:', error);
       throw error;
     }
   }

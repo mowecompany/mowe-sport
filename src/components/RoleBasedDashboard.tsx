@@ -1,8 +1,10 @@
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Chip } from "@heroui/chip";
 import { Button } from "@heroui/button";
+import { Divider } from "@heroui/divider";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+
 import {
   UserGroupIcon,
   TrophyIcon,
@@ -27,11 +29,18 @@ export const RoleBasedDashboard = () => {
           color: 'danger' as const,
           actions: [
             {
+              title: 'Gestionar Usuarios',
+              description: 'Ver y gestionar todos los usuarios del sistema',
+              icon: <UsersIcon className="w-6 h-6" />,
+              path: '/administration/users',
+              color: 'primary' as const
+            },
+            {
               title: 'Gestionar Administradores',
               description: 'Crear y gestionar administradores de ciudad',
               icon: <UsersIcon className="w-6 h-6" />,
               path: '/administration/admins',
-              color: 'primary' as const
+              color: 'secondary' as const
             },
             {
               title: 'Configuración Global',
@@ -57,18 +66,11 @@ export const RoleBasedDashboard = () => {
           color: 'primary' as const,
           actions: [
             {
-              title: 'Gestionar Propietarios',
-              description: 'Registrar y gestionar propietarios de equipos',
-              icon: <UserGroupIcon className="w-6 h-6" />,
-              path: '/administration/owners',
-              color: 'primary' as const
-            },
-            {
-              title: 'Gestionar Árbitros',
-              description: 'Registrar y gestionar árbitros',
+              title: 'Gestionar Usuarios',
+              description: 'Registrar propietarios, árbitros y gestionar usuarios',
               icon: <UsersIcon className="w-6 h-6" />,
-              path: '/administration/referees',
-              color: 'secondary' as const
+              path: '/administration/users',
+              color: 'primary' as const
             },
             {
               title: 'Aprobar Torneos',
@@ -94,10 +96,10 @@ export const RoleBasedDashboard = () => {
               color: 'primary' as const
             },
             {
-              title: 'Registrar Jugadores',
-              description: 'Agregar nuevos jugadores a tus equipos',
+              title: 'Gestionar Usuarios',
+              description: 'Registrar jugadores, entrenadores y gestionar tu equipo',
               icon: <UsersIcon className="w-6 h-6" />,
-              path: '/administration/players',
+              path: '/administration/users',
               color: 'success' as const
             },
             {
@@ -207,7 +209,8 @@ export const RoleBasedDashboard = () => {
   const roleContent = getRoleSpecificContent();
 
   return (
-    <div className="w-full max-w-6xl mx-auto mt-8">
+    <div className="w-full max-w-6xl mx-auto mt-8 space-y-8">
+      {/* Role Header */}
       <Card className="mb-6">
         <CardHeader className="flex flex-col items-start">
           <div className="flex items-center gap-3 w-full">
@@ -222,30 +225,36 @@ export const RoleBasedDashboard = () => {
         </CardHeader>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {roleContent.actions.map((action, index) => (
-          <Card key={index} className="hover:shadow-lg transition-shadow cursor-pointer" isPressable>
-            <CardBody className="p-6">
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-lg bg-primary-100 text-primary-600">
-                  {action.icon}
+
+
+      {/* Main Actions */}
+      <div>
+        <h3 className="text-xl font-semibold mb-4">Acciones Principales</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {roleContent.actions.map((action, index) => (
+            <Card key={index} className="hover:shadow-lg transition-shadow cursor-pointer" isPressable>
+              <CardBody className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-lg bg-primary-100 text-primary-600">
+                    {action.icon}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-2">{action.title}</h3>
+                    <p className="text-default-500 text-sm mb-4">{action.description}</p>
+                    <Button 
+                      color={action.color} 
+                      variant="flat" 
+                      size="sm"
+                      onClick={() => navigate(action.path)}
+                    >
+                      Acceder
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg mb-2">{action.title}</h3>
-                  <p className="text-default-500 text-sm mb-4">{action.description}</p>
-                  <Button 
-                    color={action.color} 
-                    variant="flat" 
-                    size="sm"
-                    onClick={() => navigate(action.path)}
-                  >
-                    Acceder
-                  </Button>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-        ))}
+              </CardBody>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -19,9 +19,12 @@ import { ThemeSwitch } from "@/components/theme_switch";
 import { NavbarDropdown } from "@/components/navbar_dropdown";
 import { UserProfilePopover } from "@/components/UserProfilePopover";
 import { GithubIcon, SearchIcon } from "@/components/icons";
+import { usePermissions } from "@/components/ProtectedPage";
+import type { NavItem } from "@/config/site";
 
 export const Navbar = () => {
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const { canAccessMultiple } = usePermissions();
 
   const handleMouseEnter = (label: string) => {
     setHoveredItem(label);
@@ -30,6 +33,38 @@ export const Navbar = () => {
   const handleMouseLeave = () => {
     setHoveredItem(null);
   };
+
+  // Filter navigation items based on user roles
+  const filterNavItems = (items: NavItem[]): NavItem[] => {
+    return items
+      .map(item => {
+        // If item has subitems, filter them
+        if (item.items) {
+          const filteredSubItems = item.items.filter(subItem => 
+            !subItem.allowedRoles || canAccessMultiple(subItem.allowedRoles)
+          );
+          
+          // Only show parent item if it has visible subitems
+          if (filteredSubItems.length > 0) {
+            return { ...item, items: filteredSubItems };
+          }
+          return null;
+        }
+        
+        // For items without subitems, check their roles
+        if (!item.allowedRoles || canAccessMultiple(item.allowedRoles)) {
+          return item;
+        }
+        
+        return null;
+      })
+      .filter((item): item is NavItem => item !== null);
+  };
+
+  const filteredNavItems = filterNavItems(siteConfig.navItems);
+  const filteredMenuItems = siteConfig.navMenuItems.filter(item => 
+    !item.allowedRoles || canAccessMultiple(item.allowedRoles)
+  );
 
   const searchInput = (
     <Input
@@ -69,7 +104,7 @@ export const Navbar = () => {
           </div>
         </NavbarBrand>
         <div className="hidden lg:flex gap-4 justify-start ml-2 ">
-          {siteConfig.navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <NavbarItem
               key={item.label}
               className="relative"
@@ -127,7 +162,7 @@ export const Navbar = () => {
         <div className="px-4 mb-4">{searchInput}</div>
         <div className="mx-4 mt-2 flex flex-col gap-2">
           {/* Main section */}
-          {siteConfig.navItems
+          {filteredNavItems
             .filter((item) => item.items)
             .map((section, sectionIndex) => (
               <div key={`section-${sectionIndex}`} className="mb-4">
@@ -162,14 +197,14 @@ export const Navbar = () => {
               Account
             </h3>
             <div className="flex flex-col gap-1">
-              {siteConfig.navMenuItems.map((item, index) => (
+              {filteredMenuItems.map((item, index) => (
                 <NavbarMenuItem key={`${item.label}-${index}`}>
                   <Link
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-all duration-200"
                     color={
                       index === 2
                         ? "primary"
-                        : index === siteConfig.navMenuItems.length - 1
+                        : index === filteredMenuItems.length - 1
                           ? "danger"
                           : "foreground"
                     }

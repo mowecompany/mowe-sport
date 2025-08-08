@@ -29,6 +29,7 @@ import {
 import { Notification } from "@/components/Notification";
 import { ValidationHelp } from "@/components/ValidationHelp";
 import { FormValidationProgress } from "@/components/FormValidationProgress";
+import { config } from "process";
 
 export default function AdmisPage() {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
@@ -97,10 +98,15 @@ export default function AdmisPage() {
     },
     phone: {
       required: false,
-      pattern: /^\+?[1-9]\d{1,14}$/,
+      pattern: /^(\+\d{1,3})?[\s\-]?\d{3}[\s\-]?\d{3}[\s\-]?\d{4}$/,
       custom: (value: string) => {
-        if (value && !/^\+?[1-9]\d{1,14}$/.test(value)) {
-          return "Formato de teléfono inválido";
+        if (value) {
+          // Remove spaces and check if it's a valid phone format
+          const cleanPhone = value.replace(/[\s\-]/g, '');
+          const phoneRegex = /^(\+\d{1,3})?\d{7,15}$/;
+          if (!phoneRegex.test(cleanPhone)) {
+            return "Formato de teléfono inválido. Use formato: +57 300 123 4567";
+          }
         }
         return null;
       }
@@ -140,66 +146,42 @@ export default function AdmisPage() {
   const { validatePhoneField, formatPhoneNumber } = usePhoneValidation('CO');
   const { validateIdentificationField, formatIdentification } = useIdentificationValidation('CO');
 
-  // Datos de ejemplo para los administradores
-  const admins = [
-    {
-      id: 1,
-      name: "Carlos Rodriguez",
-      email: "carlos@example.com",
-      phone: "+57 300 1234567",
-      joinDate: "15 Enero, 2022",
-      status: "Activo",
-      avatar: "https://i.pinimg.com/736x/ec/ce/ae/ecceaee5b4c02ce2c5030da88e530169.jpg"
-    },
-    {
-      id: 2,
-      name: "Carlos Rodriguez",
-      email: "carlos@example.com",
-      phone: "+57 300 1234567",
-      joinDate: "15 Enero, 2022",
-      status: "Activo",
-      avatar: "https://i.pinimg.com/736x/ec/ce/ae/ecceaee5b4c02ce2c5030da88e530169.jpg"
-    },
-    {
-      id: 3,
-      name: "Carlos Rodriguez",
-      email: "carlos@example.com",
-      phone: "+57 300 1234567",
-      joinDate: "15 Enero, 2022",
-      status: "Inactivo",
-      avatar: "https://i.pinimg.com/736x/ec/ce/ae/ecceaee5b4c02ce2c5030da88e530169.jpg"
-    },
-    {
-      id: 4,
-      name: "Carlos Rodriguez",
-      email: "carlos@example.com",
-      phone: "+57 300 1234567",
-      joinDate: "15 Enero, 2022",
-      status: "Activo",
-      avatar: "https://i.pinimg.com/736x/ec/ce/ae/ecceaee5b4c02ce2c5030da88e530169.jpg"
-    },
-    {
-      id: 5,
-      name: "Carlos Rodriguez",
-      email: "carlos@example.com",
-      phone: "+57 300 1234567",
-      joinDate: "15 Enero, 2022",
-      status: "Activo",
-      avatar: "https://i.pinimg.com/736x/ec/ce/ae/ecceaee5b4c02ce2c5030da88e530169.jpg"
-    },
-    {
-      id: 6,
-      name: "Carlos Rodriguez",
-      email: "carlos@example.com",
-      phone: "+57 300 1234567",
-      joinDate: "15 Enero, 2022",
-      status: "Inactivo",
-      avatar: "https://i.pinimg.com/736x/ec/ce/ae/ecceaee5b4c02ce2c5030da88e530169.jpg"
-    }
-  ];
+  // Estado para la lista de administradores
+  const [admins, setAdmins] = useState<any[]>([]);
+  const [loadingAdmins, setLoadingAdmins] = useState(false);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false,
+    page: 1,
+    limit: 12
+  });
+  const [filters, setFilters] = useState({
+    search: '',
+    status: '',
+    sortBy: 'created_at',
+    sortOrder: 'desc'
+  });
 
   const getStatusColor = (status: string) => {
-    return status === "Activo" ? "success" : "danger";
+    const statusColors = {
+      active: 'success',
+      suspended: 'danger',
+      payment_pending: 'warning',
+      disabled: 'default'
+    } as const;
+    return statusColors[status as keyof typeof statusColors] || 'default';
+  };
+
+  const getStatusLabel = (status: string) => {
+    const statusLabels = {
+      active: 'Activo',
+      suspended: 'Suspendido',
+      payment_pending: 'Pago Pendiente',
+      disabled: 'Deshabilitado'
+    };
+    return statusLabels[status as keyof typeof statusLabels] || status;
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -277,7 +259,41 @@ export default function AdmisPage() {
     };
 
     loadCitiesAndSports();
+    loadAdmins(); // Cargar administradores al montar el componente
   }, []);
+
+  // Load admins when filters change
+  React.useEffect(() => {
+    loadAdmins();
+  }, [filters, pagination.page]);
+
+  // Función para cargar administradores
+  const loadAdmins = async () => {
+    setLoadingAdmins(true);
+    try {
+      const response = await adminService.getAdmins({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: filters.search,
+        sort_by: filters.sortBy,
+        sort_order: filters.sortOrder as 'asc' | 'desc'
+      });
+
+      setAdmins(response.admins || []);
+      setPagination(prev => ({
+        ...prev,
+        total: response.total || 0,
+        totalPages: response.totalPages || 0,
+        hasNext: response.hasNext || false,
+        hasPrev: response.hasPrev || false
+      }));
+    } catch (error) {
+      console.error("Error loading admins:", error);
+      showError('Error', 'No se pudieron cargar los administradores');
+    } finally {
+      setLoadingAdmins(false);
+    }
+  };
 
   // Load draft when modal opens
   React.useEffect(() => {
@@ -361,6 +377,9 @@ export default function AdmisPage() {
       validationState.errors = {};
       validationState.touched = {};
 
+      // Reload admins list
+      loadAdmins();
+
     } catch (error) {
       console.error("Error registrando admin:", error);
 
@@ -384,7 +403,7 @@ export default function AdmisPage() {
 
   return (
     <DefaultLayout>
-      <section className="flex flex-col gap-6 px-4"> 
+      <section className="flex flex-col gap-6 px-4">
         {/* Header */}
         <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
@@ -395,6 +414,7 @@ export default function AdmisPage() {
               </div>
             </div>
 
+            {/* Registration Buttons */}
             <Button
               color="primary"
               startContent={<Icon icon="mdi:plus" className="w-4 h-4" />}
@@ -413,14 +433,40 @@ export default function AdmisPage() {
 
             {/* Actions Bar */}
             <div className="flex flex-col py-4 sm:flex-row gap-4 justify-between items-start sm:items-center">
-              <Input
-                placeholder="Filter tasks..."
-                startContent={<Icon icon="mdi:magnify" className="w-4 h-4 text-gray-400" />}
-                className="max-w-xs"
-                variant="bordered"
-              />
-
+              <div className="flex gap-2 flex-wrap">
+                <Input
+                  placeholder="Buscar administradores..."
+                  startContent={<Icon icon="mdi:magnify" className="w-4 h-4 text-gray-400" />}
+                  className="max-w-xs"
+                  variant="bordered"
+                  value={filters.search}
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, search: value }))}
+                />
+                <Select
+                  placeholder="Filtrar por estado"
+                  className="max-w-xs"
+                  variant="bordered"
+                  selectedKeys={filters.status ? [filters.status] : []}
+                  onSelectionChange={(keys) => {
+                    const status = Array.from(keys)[0] as string;
+                    setFilters(prev => ({ ...prev, status: status || '' }));
+                  }}
+                >
+                  <SelectItem key="active">Activo</SelectItem>
+                  <SelectItem key="suspended">Suspendido</SelectItem>
+                  <SelectItem key="payment_pending">Pago Pendiente</SelectItem>
+                  <SelectItem key="disabled">Deshabilitado</SelectItem>
+                </Select>
+              </div>
               <div className="flex gap-2">
+                <Button
+                  variant="bordered"
+                  startContent={<Icon icon="mdi:refresh" className="w-4 h-4" />}
+                  onPress={loadAdmins}
+                  isLoading={loadingAdmins}
+                >
+                  Actualizar
+                </Button>
                 <Button
                   variant="bordered"
                   startContent={<Icon icon="mdi:export" className="w-4 h-4" />}
@@ -431,98 +477,159 @@ export default function AdmisPage() {
             </div>
 
             {/* Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {admins.map((admin) => (
-                <Card key={admin.id} className="p-4">
-                  <CardHeader className="flex justify-between items-start p-0 pb-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar
-                        src={admin.avatar}
-                        name={admin.name}
-                        size="md"
-                      />
-                      <div>
-                        <h3 className="font-semibold text-sm">{admin.name}</h3>
-                      </div>
-                    </div>
-                    <Dropdown>
-                      <DropdownTrigger>
-                        <Button
-                          isIconOnly
-                          variant="light"
-                          size="sm"
-                        >
-                          <Icon icon="mdi:dots-vertical" className="w-4 h-4" />
-                        </Button>
-                      </DropdownTrigger>
-                      <DropdownMenu>
-                        <DropdownItem key="edit">Editar</DropdownItem>
-                        <DropdownItem key="delete" className="text-danger">
-                          Eliminar
-                        </DropdownItem>
-                      </DropdownMenu>
-                    </Dropdown>
-                  </CardHeader>
-
-                  <CardBody className="p-0 gap-3">
-                    <div className="flex flex-col gap-2 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Icon icon="mdi:email-outline" className="w-4 h-4 text-gray-500" />
-                        <span className="text-gray-700">{admin.email}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Icon icon="mdi:phone-outline" className="w-4 h-4 text-gray-500" />
-                        <span className="text-gray-700">{admin.phone}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Icon icon="mdi:calendar-outline" className="w-4 h-4 text-gray-500" />
-                        <span className="text-gray-700">Ingreso: {admin.joinDate}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-center pt-2">
-                      <span className="text-xs text-gray-500">Torneos</span>
-                      <Chip
-                        size="sm"
-                        color={getStatusColor(admin.status)}
-                        variant="flat"
-                      >
-                        {admin.status}
-                      </Chip>
-                    </div>
-                  </CardBody>
-                </Card>
-              ))}
-            </div>
-
-            {/* Footer with Pagination */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-between items-center pt-4">
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-600">0 of 100 row(s) selected.</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">Rows per page</span>
-                  <Select
-                    size="sm"
-                    className="w-20"
-                    defaultSelectedKeys={["10"]}
-                  >
-                    <SelectItem key="10">10</SelectItem>
-                    <SelectItem key="20">20</SelectItem>
-                    <SelectItem key="50">50</SelectItem>
-                  </Select>
+            {loadingAdmins ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                  <p className="text-gray-600">Cargando administradores...</p>
                 </div>
               </div>
+            ) : admins.length === 0 ? (
+              <Card className="py-12">
+                <CardBody className="text-center">
+                  <Icon icon="mdi:account-off" className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-600 mb-2">No hay administradores</h3>
+                  <p className="text-gray-500 mb-4">
+                    {filters.search ? 'No se encontraron administradores con los filtros aplicados' : 'Comienza registrando tu primer administrador'}
+                  </p>
+                  {!filters.search && (
+                    <Button
+                      color="primary"
+                      startContent={<Icon icon="mdi:plus" className="w-4 h-4" />}
+                      onPress={onOpen}
+                    >
+                      Registrar Primer Admin
+                    </Button>
+                  )}
+                </CardBody>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {admins.map((admin) => (
+                  <Card key={admin.user_id} className="p-4">
+                    <CardHeader className="flex justify-between items-start p-0 pb-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar
+                          src={admin.photo_url}
+                          name={`${admin.first_name} ${admin.last_name}`}
+                          size="md"
+                        />
+                        <div>
+                          <h3 className="font-semibold text-sm">{admin.first_name} {admin.last_name}</h3>
+                          {admin.city_name && (
+                            <p className="text-xs text-gray-500">{admin.city_name}</p>
+                          )}
+                        </div>
+                      </div>
+                      <Dropdown>
+                        <DropdownTrigger>
+                          <Button
+                            isIconOnly
+                            variant="light"
+                            size="sm"
+                          >
+                            <Icon icon="mdi:dots-vertical" className="w-4 h-4" />
+                          </Button>
+                        </DropdownTrigger>
+                        <DropdownMenu>
+                          <DropdownItem key="view">Ver Detalles</DropdownItem>
+                          <DropdownItem key="edit">Editar</DropdownItem>
+                          <DropdownItem key="regenerate">Regenerar Contraseña</DropdownItem>
+                          <DropdownItem key="suspend" className="text-warning">
+                            {admin.account_status === 'active' ? 'Suspender' : 'Activar'}
+                          </DropdownItem>
+                          <DropdownItem key="delete" className="text-danger">
+                            Eliminar
+                          </DropdownItem>
+                        </DropdownMenu>
+                      </Dropdown>
+                    </CardHeader>
 
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-600">Page 1 of 10</span>
-                <Pagination
-                  total={10}
-                  initialPage={1}
-                  size="sm"
-                  showControls
-                />
+                    <CardBody className="p-0 gap-3">
+                      <div className="flex flex-col gap-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Icon icon="mdi:email-outline" className="w-4 h-4 text-gray-500" />
+                          <span className="text-gray-700 truncate">{admin.email}</span>
+                        </div>
+                        {admin.phone && (
+                          <div className="flex items-center gap-2">
+                            <Icon icon="mdi:phone-outline" className="w-4 h-4 text-gray-500" />
+                            <span className="text-gray-700">{admin.phone}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <Icon icon="mdi:calendar-outline" className="w-4 h-4 text-gray-500" />
+                          <span className="text-gray-700">
+                            {new Date(admin.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {admin.sport_name && (
+                          <div className="flex items-center gap-2">
+                            <Icon icon="mdi:soccer" className="w-4 h-4 text-gray-500" />
+                            <span className="text-gray-700 truncate">{admin.sport_name}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center pt-2">
+                        {admin.last_login_at ? (
+                          <span className="text-xs text-gray-500">
+                            Último acceso: {new Date(admin.last_login_at).toLocaleDateString()}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-500">Sin accesos</span>
+                        )}
+                        <Chip
+                          size="sm"
+                          color={getStatusColor(admin.account_status)}
+                          variant="flat"
+                        >
+                          {getStatusLabel(admin.account_status)}
+                        </Chip>
+                      </div>
+                    </CardBody>
+                  </Card>
+                ))}
               </div>
-            </div>
+            )}
+
+            {/* Footer with Pagination */}
+            {pagination.totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row gap-4 justify-between items-center pt-4">
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-600">
+                    {pagination.total} administradores encontrados
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">Admins por página</span>
+                    <Select
+                      size="sm"
+                      className="w-20"
+                      selectedKeys={[pagination.limit.toString()]}
+                      onSelectionChange={(keys) => {
+                        const limit = parseInt(Array.from(keys)[0] as string);
+                        setPagination(prev => ({ ...prev, limit, page: 1 }));
+                      }}
+                    >
+                      <SelectItem key="12">12</SelectItem>
+                      <SelectItem key="24">24</SelectItem>
+                      <SelectItem key="48">48</SelectItem>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-600">
+                    Página {pagination.page} de {pagination.totalPages}
+                  </span>
+                  <Pagination
+                    total={pagination.totalPages}
+                    page={pagination.page}
+                    onChange={(page) => setPagination(prev => ({ ...prev, page }))}
+                    size="sm"
+                    showControls
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

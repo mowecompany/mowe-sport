@@ -94,6 +94,8 @@ export interface Sport {
 
 // Admin Management Types
 export interface AdminListResponse {
+  hasPrev: boolean;
+  hasNext: boolean;
   admins: AdminSummary[];
   total: number;
   page: number;
@@ -167,6 +169,8 @@ export interface LoginResponse {
   token: string;
   refresh_token: string;
   expires_in: number;
+  requires_password_change?: boolean;
+  password_expires_at?: Date;
 }
 
 export interface SignupRequest {

@@ -835,3 +835,8 @@ func (s *UserManagementService) GetUserList(ctx context.Context, req *models.Use
 		HasPrev:    hasPrev,
 	}, nil
 }
+
+// GetDB returns the database connection for use in handlers
+func (s *UserManagementService) GetDB() *database.Database {
+	return s.db
+}

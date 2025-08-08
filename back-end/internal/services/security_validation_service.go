@@ -136,18 +136,25 @@ func (s *SecurityValidationService) ValidateInternationalPhone(phone string) err
 	// Remove all non-digit characters except + at the beginning
 	cleanPhone := strings.TrimSpace(phone)
 
-	// International phone regex (E.164 format)
-	phoneRegex := regexp.MustCompile(`^\+[1-9]\d{1,14}$`)
+	// Remove spaces, hyphens, parentheses for validation
+	digitsAndPlus := regexp.MustCompile(`[^\d+]`).ReplaceAllString(cleanPhone, "")
 
-	if !phoneRegex.MatchString(cleanPhone) {
-		// Try alternative formats
-		alternativeRegex := regexp.MustCompile(`^(\+\d{1,3}[\s\-]?)?\(?\d{1,4}\)?[\s\-]?\d{1,4}[\s\-]?\d{1,9}$`)
-		if !alternativeRegex.MatchString(cleanPhone) {
-			return fmt.Errorf("invalid international phone format. Use format: +[country code][number] (e.g., +57 300 123 4567)")
-		}
+	// More flexible international phone validation
+	// Allow phones with country code (+57) and 10 digits, or just 10 digits
+	var phoneRegex *regexp.Regexp
+	if strings.HasPrefix(digitsAndPlus, "+") {
+		// International format with country code: +[1-4 digits country code][7-11 digits]
+		phoneRegex = regexp.MustCompile(`^\+[1-9]\d{7,14}$`)
+	} else {
+		// Local format (assume 7-15 digits)
+		phoneRegex = regexp.MustCompile(`^\d{7,15}$`)
 	}
 
-	// Validate length
+	if !phoneRegex.MatchString(digitsAndPlus) {
+		return fmt.Errorf("invalid phone format. Use international format (+57 300 123 4567) or local format (300 123 4567)")
+	}
+
+	// Validate total digit count (excluding country code prefix)
 	digitsOnly := regexp.MustCompile(`\D`).ReplaceAllString(cleanPhone, "")
 	if len(digitsOnly) < 7 || len(digitsOnly) > 15 {
 		return fmt.Errorf("phone number must be between 7 and 15 digits")

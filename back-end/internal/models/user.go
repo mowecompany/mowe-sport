@@ -53,23 +53,6 @@ type UserViewPermission struct {
 	UpdatedAt          time.Time  `json:"updated_at" db:"updated_at"`
 }
 
-// Legacy User struct for backward compatibility (can be removed later)
-type User struct {
-	ID           int       `json:"id"`
-	Name         string    `json:"name"`
-	LastName     string    `json:"last_name,omitempty"`
-	Email        string    `json:"email"`
-	Password     string    `json:"password,omitempty"`
-	PasswordHash string    `json:"password_hash,omitempty"`
-	Phone        string    `json:"phone,omitempty"`
-	Document     string    `json:"document,omitempty"`
-	DocumentType string    `json:"document_type,omitempty"`
-	Role         string    `json:"role,omitempty"`
-	Status       bool      `json:"status"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-}
-
 // Authentication request/response structs
 type SignupRequest struct {
 	FirstName string `json:"first_name" validate:"required"`
@@ -94,14 +77,16 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	UserID       uuid.UUID `json:"user_id"`
-	Email        string    `json:"email"`
-	FirstName    string    `json:"first_name"`
-	LastName     string    `json:"last_name"`
-	PrimaryRole  string    `json:"primary_role"`
-	Token        string    `json:"token"`
-	RefreshToken string    `json:"refresh_token"`
-	ExpiresIn    int       `json:"expires_in"`
+	UserID                 uuid.UUID  `json:"user_id"`
+	Email                  string     `json:"email"`
+	FirstName              string     `json:"first_name"`
+	LastName               string     `json:"last_name"`
+	PrimaryRole            string     `json:"primary_role"`
+	Token                  string     `json:"token"`
+	RefreshToken           string     `json:"refresh_token"`
+	ExpiresIn              int        `json:"expires_in"`
+	RequiresPasswordChange bool       `json:"requires_password_change,omitempty"`
+	PasswordExpiresAt      *time.Time `json:"password_expires_at,omitempty"`
 }
 
 // Password recovery structs

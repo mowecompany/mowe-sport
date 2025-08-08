@@ -31,9 +31,12 @@ func (s *Server) setupRoutes() {
 	// JWT configuration
 	jwtConfig := middleware.NewJWTConfig(s.config.JWTSecret)
 
+	// Initialize handlers
+	authHandler := handlers.NewAuthHandler(s.db, s.config.JWTSecret)
+	passwordHandler := handlers.NewPasswordHandler(s.db)
+
 	// Auth routes
 	auth := api.Group("/auth")
-	authHandler := handlers.NewAuthHandler(s.db, s.config.JWTSecret)
 
 	// Public auth endpoints
 	auth.POST("/login", authHandler.Login)
@@ -51,6 +54,10 @@ func (s *Server) setupRoutes() {
 	authProtected.POST("/2fa/verify", authHandler.Verify2FA)
 	authProtected.POST("/2fa/disable", authHandler.Disable2FA)
 
+	// Password management endpoints
+	authProtected.POST("/change-password", passwordHandler.ChangePassword)
+	authProtected.GET("/password-status", passwordHandler.CheckPasswordStatus)
+
 	// Protected routes
 	protected := api.Group("/protected")
 	protected.Use(jwtConfig.JWTMiddleware())
@@ -60,8 +67,8 @@ func (s *Server) setupRoutes() {
 	admin := api.Group("/admin")
 	admin.Use(jwtConfig.JWTMiddleware())
 
-	// Import handlers
-	adminHandler := handlers.NewAdminHandler(s.db)
+	// Initialize admin handler
+	adminHandler := handlers.NewAdminHandler(s.db, s.config)
 
 	// Admin registration endpoint (requires super admin)
 	admin.POST("/register", middleware.RequireSuperAdminRole()(adminHandler.RegisterAdmin))
@@ -71,6 +78,9 @@ func (s *Server) setupRoutes() {
 
 	// Admin list endpoint (requires super admin)
 	admin.GET("/list", middleware.RequireSuperAdminRole()(adminHandler.GetAdminList))
+
+	// Password management for admins (requires super admin)
+	admin.POST("/:id/regenerate-password", middleware.RequireSuperAdminRole()(passwordHandler.RegenerateTemporaryPassword))
 
 	// User management routes (require authentication)
 	users := api.Group("/users")
@@ -92,6 +102,21 @@ func (s *Server) setupRoutes() {
 
 	// View permission endpoints (require super admin permissions)
 	users.POST("/permissions", middleware.RequireSuperAdminRole()(userHandler.SetViewPermission))
+
+	// Hierarchical user registration endpoints
+	// Super Admin can register City Admins
+	users.POST("/register/city-admin", middleware.RequireSuperAdminRole()(userHandler.RegisterCityAdmin))
+
+	// City Admin can register Owners and Referees
+	users.POST("/register/owner", middleware.RequireAdminRole()(userHandler.RegisterOwner))
+	users.POST("/register/referee", middleware.RequireAdminRole()(userHandler.RegisterReferee))
+
+	// Owner can register Players and Coaches
+	users.POST("/register/player", middleware.RequireOwnerRole()(userHandler.RegisterPlayer))
+	users.POST("/register/coach", middleware.RequireOwnerRole()(userHandler.RegisterCoach))
+
+	// Email validation endpoint for user registration
+	users.GET("/validate-email", userHandler.ValidateEmailUniqueness)
 }
 
 func (s *Server) handleHealthCheck(c echo.Context) error {

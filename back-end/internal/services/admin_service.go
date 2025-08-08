@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"mowesport/internal/config"
 	"mowesport/internal/database"
 	"mowesport/internal/models"
 	"strings"
@@ -17,12 +18,19 @@ import (
 type AdminService struct {
 	db                *database.Database
 	securityValidator *SecurityValidationService
+	emailService      *EmailService
+	config            *config.Config
 }
 
-func NewAdminService(db *database.Database) *AdminService {
+func NewAdminService(db *database.Database, cfg *config.Config) *AdminService {
+	auditService := NewSecurityAuditService(db)
+	emailService := NewEmailService(cfg, auditService)
+
 	return &AdminService{
 		db:                db,
 		securityValidator: NewSecurityValidationService(),
+		emailService:      emailService,
+		config:            cfg,
 	}
 }
 
@@ -176,8 +184,31 @@ func (s *AdminService) RegisterAdmin(ctx context.Context, req *models.AdminRegis
 		"role_assignment_id": roleAssignmentID,
 	})
 
-	// TODO: Send welcome email with temporary password
-	// This will be implemented in task 9
+	// Send welcome email with temporary password
+	go func() {
+		// Get city and sport names for email
+		var cityName, sportName string
+		s.db.GetConnection().QueryRow(context.Background(), "SELECT name FROM cities WHERE city_id = $1", cityUUID).Scan(&cityName)
+		s.db.GetConnection().QueryRow(context.Background(), "SELECT name FROM sports WHERE sport_id = $1", sportUUID).Scan(&sportName)
+
+		emailData := WelcomeEmailData{
+			FirstName:         req.FirstName,
+			LastName:          req.LastName,
+			Email:             req.Email,
+			TemporaryPassword: tempPassword,
+			LoginURL:          s.config.FrontendURL + "/sign-in",
+			SupportEmail:      s.config.SupportEmail,
+			CompanyName:       "Mowe Sport",
+			CityName:          cityName,
+			SportName:         sportName,
+			ExpirationHours:   24,
+		}
+
+		if err := s.emailService.SendWelcomeEmail(context.Background(), emailData); err != nil {
+			// Log error but don't fail the registration
+			fmt.Printf("Failed to send welcome email to %s: %v\n", req.Email, err)
+		}
+	}()
 
 	return response, nil
 }

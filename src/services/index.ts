@@ -3,6 +3,7 @@ export { adminService } from './adminService';
 export { citiesService } from './citiesService';
 export { sportsService } from './sportsService';
 export { authService } from './auth';
+export { userRegistrationService } from './userRegistrationService';
 export { BaseApiService } from './baseApiService';
 
 // Export interceptors and initialization
@@ -52,6 +53,20 @@ export type {
   // Notification types
   NotificationData
 } from './types';
+
+// Export user registration types
+export type {
+  BaseUserRegistrationData,
+  CityAdminRegistrationData,
+  OwnerRegistrationData,
+  RefereeRegistrationData,
+  PlayerRegistrationData,
+  CoachRegistrationData,
+  UserRegistrationResponse,
+  UserListRequest,
+  UserSummary,
+  UserListResponse
+} from './userRegistrationService';
 
 // Legacy exports for backward compatibility
 export type { SignUpData, SignInData, AuthResponse } from './auth';

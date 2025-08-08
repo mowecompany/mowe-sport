@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"mowesport/internal/config"
 	"mowesport/internal/database"
 	"mowesport/internal/models"
 	"mowesport/internal/services"
@@ -20,9 +21,9 @@ type AdminHandler struct {
 	validator    *validator.Validate
 }
 
-func NewAdminHandler(db *database.Database) *AdminHandler {
+func NewAdminHandler(db *database.Database, cfg *config.Config) *AdminHandler {
 	return &AdminHandler{
-		adminService: services.NewAdminService(db),
+		adminService: services.NewAdminService(db, cfg),
 		validator:    validator.New(),
 	}
 }
@@ -217,7 +218,6 @@ func (h *AdminHandler) ValidateEmail(c echo.Context) error {
 		"data":    response,
 	})
 }
-
 
 // GetAdminList handles GET /api/admin/list
 func (h *AdminHandler) GetAdminList(c echo.Context) error {

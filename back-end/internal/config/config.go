@@ -19,6 +19,20 @@ type Config struct {
 	JWTAccessExpiration  time.Duration
 	JWTRefreshExpiration time.Duration
 
+	// Email configuration
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUser     string
+	SMTPPassword string
+	FromEmail    string
+	FromName     string
+
+	// Application configuration
+	Environment  string
+	FrontendURL  string
+	SupportEmail string
+	Debug        bool
+
 	// Security configuration
 	Security SecurityConfig
 }
@@ -31,7 +45,22 @@ func LoadConfig() *Config {
 		JWTSecret:            getEnv("JWT_SECRET", "your-default-secret-key-change-in-production"),
 		JWTAccessExpiration:  getDurationEnv("JWT_ACCESS_EXPIRATION", time.Hour),
 		JWTRefreshExpiration: getDurationEnv("JWT_REFRESH_EXPIRATION", 7*24*time.Hour),
-		Security:             GetDefaultSecurityConfig(),
+
+		// Email configuration
+		SMTPHost:     getEnv("SMTP_HOST", ""),
+		SMTPPort:     getEnv("SMTP_PORT", "587"),
+		SMTPUser:     getEnv("SMTP_USER", ""),
+		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
+		FromEmail:    getEnv("FROM_EMAIL", "noreply@mowesport.com"),
+		FromName:     getEnv("FROM_NAME", "Mowe Sport"),
+
+		// Application configuration
+		Environment:  getEnv("ENVIRONMENT", "development"),
+		FrontendURL:  getEnv("FRONTEND_URL", "http://localhost:3000"),
+		SupportEmail: getEnv("SUPPORT_EMAIL", "support@mowesport.com"),
+		Debug:        getBoolEnv("DEBUG", true),
+
+		Security: GetDefaultSecurityConfig(),
 	}
 
 	return config

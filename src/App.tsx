@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 
 import IndexPage from "@/pages/index";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ProtectedPage } from "@/components/ProtectedPage";
 import { AuthLoader } from "@/components/AuthLoader";
 // Auth pages
 import SignInPage from "@/auth/sign-in/sign-in";
@@ -21,6 +22,10 @@ import RefereesPage from "./pages/administration/referees";
 // Profile and Settings pages
 import ProfilePage from "@/pages/profile/ProfilePage";
 import SettingsPage from "@/pages/settings/SettingsPage";
+import TournamentsPage from "./pages/main/tournaments";
+import CalendarPage from "./pages/main/calendar";
+import MatchesPage from "./pages/main/matches";
+import StatisticsPage from "./pages/main/statistics";
 
 function App() {
   return (
@@ -40,12 +45,24 @@ function App() {
         } 
       />
       
-      {/* Main routes - Requieren autenticación */}
+      {/* Main routes - Requieren autenticación, accesibles para la mayoría de roles */}
       <Route 
         path="/main/sports" 
         element={
           <ProtectedRoute requireAuth={true}>
-            <SportsPage />
+            <ProtectedPage allowedRoles={['super_admin', 'city_admin', 'tournament_admin', 'owner', 'coach', 'referee', 'player', 'client']}>
+              <SportsPage />
+            </ProtectedPage>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/main/tournaments" 
+        element={
+          <ProtectedRoute requireAuth={true}>
+            <ProtectedPage allowedRoles={['super_admin', 'city_admin', 'tournament_admin', 'owner', 'coach', 'referee', 'player', 'client']}>
+              <TournamentsPage />
+            </ProtectedPage>
           </ProtectedRoute>
         } 
       />
@@ -53,17 +70,51 @@ function App() {
         path="/main/teams" 
         element={
           <ProtectedRoute requireAuth={true}>
-            <TeamsPage />
+            <ProtectedPage allowedRoles={['super_admin', 'city_admin', 'tournament_admin', 'owner', 'coach', 'player', 'client']}>
+              <TeamsPage />
+            </ProtectedPage>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/main/calendar" 
+        element={
+          <ProtectedRoute requireAuth={true}>
+            <ProtectedPage allowedRoles={['super_admin', 'city_admin', 'tournament_admin', 'owner', 'coach', 'referee', 'player', 'client']}>
+              <CalendarPage />
+            </ProtectedPage>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/main/matches" 
+        element={
+          <ProtectedRoute requireAuth={true}>
+            <ProtectedPage allowedRoles={['super_admin', 'city_admin', 'tournament_admin', 'owner', 'coach', 'referee', 'player', 'client']}>
+              <MatchesPage />
+            </ProtectedPage>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/main/statistics" 
+        element={
+          <ProtectedRoute requireAuth={true}>
+            <ProtectedPage allowedRoles={['super_admin', 'city_admin', 'tournament_admin', 'owner', 'coach', 'player', 'client']}>
+              <StatisticsPage />
+            </ProtectedPage>
           </ProtectedRoute>
         } 
       />
 
-      {/* Administration routes - Requieren autenticación */}
+      {/* Administration routes - Requieren autenticación y roles específicos */}
       <Route 
         path="/administration/super_admin" 
         element={
           <ProtectedRoute requireAuth={true}>
-            <SuperAdminPage />
+            <ProtectedPage allowedRoles={['super_admin']}>
+              <SuperAdminPage />
+            </ProtectedPage>
           </ProtectedRoute>
         } 
       />
@@ -71,7 +122,9 @@ function App() {
         path="/administration/admins" 
         element={
           <ProtectedRoute requireAuth={true}>
-            <AdminsPage />
+            <ProtectedPage allowedRoles={['super_admin']}>
+              <AdminsPage />
+            </ProtectedPage>
           </ProtectedRoute>
         } 
       />
@@ -79,7 +132,9 @@ function App() {
         path="/administration/players" 
         element={
           <ProtectedRoute requireAuth={true}>
-            <PlayersPage />
+            <ProtectedPage allowedRoles={['super_admin', 'city_admin', 'owner', 'coach']}>
+              <PlayersPage />
+            </ProtectedPage>
           </ProtectedRoute>
         } 
       />
@@ -87,7 +142,9 @@ function App() {
         path="/administration/referees" 
         element={
           <ProtectedRoute requireAuth={true}>
-            <RefereesPage />
+            <ProtectedPage allowedRoles={['super_admin', 'city_admin']}>
+              <RefereesPage />
+            </ProtectedPage>
           </ProtectedRoute>
         } 
       />
@@ -95,7 +152,9 @@ function App() {
         path="/administration/users" 
         element={
           <ProtectedRoute requireAuth={true}>
-            <UsersPage />
+            <ProtectedPage allowedRoles={['super_admin', 'city_admin', 'owner']}>
+              <UsersPage />
+            </ProtectedPage>
           </ProtectedRoute>
         } 
       />
@@ -105,7 +164,9 @@ function App() {
         path="/profile" 
         element={
           <ProtectedRoute requireAuth={true}>
-            <ProfilePage />
+            <ProtectedPage allowedRoles={['super_admin', 'city_admin', 'tournament_admin', 'owner', 'coach', 'referee', 'player', 'client']}>
+              <ProfilePage />
+            </ProtectedPage>
           </ProtectedRoute>
         } 
       />
@@ -113,7 +174,9 @@ function App() {
         path="/settings" 
         element={
           <ProtectedRoute requireAuth={true}>
-            <SettingsPage />
+            <ProtectedPage allowedRoles={['super_admin', 'city_admin', 'tournament_admin', 'owner']}>
+              <SettingsPage />
+            </ProtectedPage>
           </ProtectedRoute>
         } 
       />
