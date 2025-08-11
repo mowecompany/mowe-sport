@@ -1,5 +1,6 @@
 import { BaseApiService } from './baseApiService';
 import type { City, CacheEntry } from './types';
+import { requestManager } from '../utils/requestManager';
 
 class CitiesService extends BaseApiService {
   private cache: CacheEntry<City[]> | null = null;
@@ -15,39 +16,43 @@ class CitiesService extends BaseApiService {
    * Get all cities with intelligent caching
    */
   async getCities(forceRefresh = false): Promise<City[]> {
-    // Check cache first (unless force refresh)
-    if (!forceRefresh && this.isCacheValid()) {
-      console.debug('Returning cities from cache');
-      return this.cache!.data;
-    }
+    return requestManager.request(
+      '/cities',
+      async () => {
+        try {
+          console.debug('Fetching cities from API');
+          const cities = await this.get<City[]>('/cities');
+          
+          // Validate response data
+          if (!Array.isArray(cities)) {
+            throw new Error('Invalid response format from cities API');
+          }
 
-    try {
-      console.debug('Fetching cities from API');
-      const cities = await this.get<City[]>('/cities');
-      
-      // Validate response data
-      if (!Array.isArray(cities)) {
-        throw new Error('Invalid response format from cities API');
+          // Update local cache
+          this.updateCache(cities);
+          
+          console.info(`Loaded ${cities.length} cities from API`);
+          return cities;
+        } catch (error) {
+          console.error('Error in getCities:', error);
+          
+          // Try to return stale cache data if available
+          if (this.cache?.data) {
+            console.warn('API failed, returning stale cache data');
+            return this.cache.data;
+          }
+          
+          // Fallback to mock data
+          console.warn('API failed and no cache available, returning mock data');
+          return this.getMockCities();
+        }
+      },
+      {},
+      { 
+        ttl: this.CACHE_DURATION, 
+        forceRefresh 
       }
-
-      // Update cache
-      this.updateCache(cities);
-      
-      console.info(`Loaded ${cities.length} cities from API`);
-      return cities;
-    } catch (error) {
-      console.error('Error in getCities:', error);
-      
-      // Try to return stale cache data if available
-      if (this.cache?.data) {
-        console.warn('API failed, returning stale cache data');
-        return this.cache.data;
-      }
-      
-      // Fallback to mock data
-      console.warn('API failed and no cache available, returning mock data');
-      return this.getMockCities();
-    }
+    );
   }
 
   /**

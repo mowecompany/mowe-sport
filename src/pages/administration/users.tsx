@@ -98,7 +98,7 @@ export default function UsersPage() {
       'Usuario Registrado',
       `${userData.first_name} ${userData.last_name} ha sido registrado exitosamente`
     );
-    loadUsers(); // Refresh the list
+    loadUsers();
   };
 
   const handleDeleteUser = async () => {

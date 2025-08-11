@@ -11,7 +11,7 @@ import { Button } from "@heroui/button";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/modal";
 import { useDisclosure } from "@heroui/modal";
 import { Icon } from "@iconify/react";
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { useEmailValidation } from "@/hooks/useEmailValidation";
 import { useNotification } from "@/hooks/useNotification";
 import { useFormValidation } from "@/hooks/useFormValidation";
@@ -49,6 +49,8 @@ export default function AdmisPage() {
   const [cities, setCities] = useState<City[]>([]);
   const [sports, setSports] = useState<Sport[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+
+  // Cache hooks for cities and sports
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState<{
@@ -150,6 +152,11 @@ export default function AdmisPage() {
   // Estado para la lista de administradores
   const [admins, setAdmins] = useState<UserSummary[]>([]);
   const [loadingAdmins, setLoadingAdmins] = useState(false);
+  const isLoadingRef = useRef(false);
+  const lastLoadTimeRef = useRef<number>(0);
+  const hasInitialLoadRef = useRef(false);
+  const dataLoadedRef = useRef(false);
+  const mountedRef = useRef(false);
   const [pagination, setPagination] = useState({
     total: 0,
     totalPages: 0,
@@ -158,11 +165,13 @@ export default function AdmisPage() {
     page: 1,
     limit: 12
   });
+
+  // Only show city administrators
   const [filters, setFilters] = useState<UserListRequest>({
     page: 1,
     limit: 12,
     search: '',
-    role: 'city_admin', // Solo mostrar administradores de ciudad
+    role: 'city_admin',
     account_status: undefined,
     sort_by: 'created_at',
     sort_order: 'desc'
@@ -242,40 +251,118 @@ export default function AdmisPage() {
     return isFormValid;
   };
 
-  // Load cities and sports on component mount
+  // Single initialization effect
   React.useEffect(() => {
-    const loadCitiesAndSports = async () => {
-      setLoadingData(true);
+    let isMounted = true;
+
+    const initializeData = async () => {
+      // Prevent multiple executions
+      if (mountedRef.current) {
+        console.log('[AdminsPage] Component already initialized, skipping...');
+        return;
+      }
+      mountedRef.current = true;
+
+      console.log('[AdminsPage] Initializing component data...');
+
       try {
+        setLoadingData(true);
+
+        // Load cities and sports in parallel using RequestManager
+        console.log('[AdminsPage] Loading cities and sports...');
         const [citiesData, sportsData] = await Promise.all([
           citiesService.getCities(),
           sportsService.getSports()
         ]);
 
-        setCities(citiesData);
-        setSports(sportsData);
+        if (isMounted) {
+          setCities(citiesData);
+          setSports(sportsData);
+          dataLoadedRef.current = true;
+
+          // Now load admins
+          if (!hasInitialLoadRef.current) {
+            console.log('[AdminsPage] Loading initial admins...');
+            await loadAdmins(0, true);
+          }
+        }
+
       } catch (error) {
-        console.error("Error loading cities and sports:", error);
-        // Services will return mock data on error, so we can continue
+        console.error('[AdminsPage] Error initializing data:', error);
+        if (isMounted) {
+          showError('Error de Inicialización', 'Error cargando datos iniciales');
+        }
       } finally {
-        setLoadingData(false);
+        if (isMounted) {
+          setLoadingData(false);
+        }
       }
     };
 
-    loadCitiesAndSports();
-    loadAdmins(); // Cargar administradores al montar el componente
-  }, []);
+    initializeData();
 
-  // Load admins when filters change
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Only run once
+
+  // Handle filter changes with debounce
   React.useEffect(() => {
-    loadAdmins();
-  }, [filters]);
+    // Skip if this is the initial load
+    if (!hasInitialLoadRef.current) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      // Only load if filters actually changed from defaults
+      const hasNonDefaultFilters =
+        filters.page !== 1 ||
+        filters.search !== '' ||
+        filters.account_status !== undefined;
+
+      if (hasNonDefaultFilters) {
+        console.log('Filters changed, loading admins...');
+        loadAdmins(0, true); // Force reload for filter changes
+      }
+    }, filters.search ? 500 : 100); // 500ms debounce for search, 100ms for other filters
+
+    return () => clearTimeout(timeoutId);
+  }, [filters.page, filters.limit, filters.search, filters.account_status, filters.sort_by, filters.sort_order]);
 
   // Función para cargar administradores
-  const loadAdmins = async () => {
+  const loadAdmins = useCallback(async (retryCount = 0, forceReload = false) => {
+    // Prevent multiple simultaneous loads
+    if (isLoadingRef.current) {
+      console.log('Already loading admins, skipping...');
+      return;
+    }
+
+    // Check if we need to reload (avoid unnecessary requests)
+    const now = Date.now();
+    const timeSinceLastLoad = now - lastLoadTimeRef.current;
+    const minTimeBetweenLoads = 2000; // 2 seconds minimum between loads
+
+    if (!forceReload && hasInitialLoadRef.current && timeSinceLastLoad < minTimeBetweenLoads) {
+      console.log('Too soon since last load, skipping...');
+      return;
+    }
+
+    // Check if user is authenticated
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('authToken');
+    if (!token) {
+      console.error('No auth token found');
+      showError('Error de Autenticación', 'No se encontró token de autenticación');
+      return;
+    }
+
+    isLoadingRef.current = true;
     setLoadingAdmins(true);
+    lastLoadTimeRef.current = now;
+
     try {
+      console.log('Loading admins with filters:', filters);
       const response = await userRegistrationService.getUsersList(filters);
+      console.log('Admins response:', response);
 
       setAdmins(response.users || []);
       setPagination(prev => ({
@@ -285,20 +372,48 @@ export default function AdmisPage() {
         hasNext: response.has_next || false,
         hasPrev: response.has_prev || false
       }));
+
+      hasInitialLoadRef.current = true;
     } catch (error) {
       console.error("Error loading admins:", error);
-      showError('Error', 'No se pudieron cargar los administradores');
+      console.error("Error details:", error.message);
+
+      // Check if it's an authentication error
+      if (error.message.includes('Authentication') || error.message.includes('401')) {
+        showError('Error de Autenticación', 'Su sesión ha expirado. Por favor, inicie sesión nuevamente.');
+        return;
+      }
+
+      // Retry once if it's a network error and we haven't retried yet
+      if (retryCount === 0 && (error.message.includes('fetch') || error.message.includes('Network') || error.message.includes('500'))) {
+        console.log('Retrying admin load...');
+        isLoadingRef.current = false;
+        setTimeout(() => loadAdmins(1, true), 2000);
+        return;
+      }
+
+      showError('Error', `No se pudieron cargar los administradores: ${error.message}`);
+      // Set empty state on error
+      setAdmins([]);
+      setPagination(prev => ({
+        ...prev,
+        total: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrev: false
+      }));
     } finally {
       setLoadingAdmins(false);
+      isLoadingRef.current = false;
     }
-  };
+  }, [filters, showError, userRegistrationService]);
 
   // Función para manejar cambios de estado
   const handleStatusChange = async (userId: string, newStatus: AccountStatus) => {
     try {
       await userRegistrationService.updateUserStatus(userId, newStatus);
       showSuccess('Estado Actualizado', 'El estado del administrador ha sido actualizado');
-      loadAdmins();
+      loadAdmins(0, true); // Force reload after status change
     } catch (error) {
       console.error('Error updating status:', error);
       showError('Error', 'No se pudo actualizar el estado del administrador');
@@ -399,7 +514,7 @@ export default function AdmisPage() {
       validationState.touched = {};
 
       // Reload admins list
-      loadAdmins();
+      loadAdmins(0, true); // Force reload after registration
 
     } catch (error) {
       console.error("Error registrando admin:", error);
@@ -483,7 +598,7 @@ export default function AdmisPage() {
                 <Button
                   variant="bordered"
                   startContent={<Icon icon="mdi:refresh" className="w-4 h-4" />}
-                  onPress={loadAdmins}
+                  onPress={() => loadAdmins(0, true)} // Force reload
                   isLoading={loadingAdmins}
                 >
                   Actualizar

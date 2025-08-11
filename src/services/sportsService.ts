@@ -1,5 +1,6 @@
 import { BaseApiService } from './baseApiService';
 import type { Sport, CacheEntry } from './types';
+import { requestManager } from '../utils/requestManager';
 
 class SportsService extends BaseApiService {
   private cache: CacheEntry<Sport[]> | null = null;
@@ -15,39 +16,43 @@ class SportsService extends BaseApiService {
    * Get all sports with intelligent caching
    */
   async getSports(forceRefresh = false): Promise<Sport[]> {
-    // Check cache first (unless force refresh)
-    if (!forceRefresh && this.isCacheValid()) {
-      console.debug('Returning sports from cache');
-      return this.cache!.data;
-    }
+    return requestManager.request(
+      '/sports',
+      async () => {
+        try {
+          console.debug('Fetching sports from API');
+          const sports = await this.get<Sport[]>('/sports');
+          
+          // Validate response data
+          if (!Array.isArray(sports)) {
+            throw new Error('Invalid response format from sports API');
+          }
 
-    try {
-      console.debug('Fetching sports from API');
-      const sports = await this.get<Sport[]>('/sports');
-      
-      // Validate response data
-      if (!Array.isArray(sports)) {
-        throw new Error('Invalid response format from sports API');
+          // Update local cache
+          this.updateCache(sports);
+          
+          console.info(`Loaded ${sports.length} sports from API`);
+          return sports;
+        } catch (error) {
+          console.error('Error in getSports:', error);
+          
+          // Try to return stale cache data if available
+          if (this.cache?.data) {
+            console.warn('API failed, returning stale cache data');
+            return this.cache.data;
+          }
+          
+          // Fallback to mock data
+          console.warn('API failed and no cache available, returning mock data');
+          return this.getMockSports();
+        }
+      },
+      {},
+      { 
+        ttl: this.CACHE_DURATION, 
+        forceRefresh 
       }
-
-      // Update cache
-      this.updateCache(sports);
-      
-      console.info(`Loaded ${sports.length} sports from API`);
-      return sports;
-    } catch (error) {
-      console.error('Error in getSports:', error);
-      
-      // Try to return stale cache data if available
-      if (this.cache?.data) {
-        console.warn('API failed, returning stale cache data');
-        return this.cache.data;
-      }
-      
-      // Fallback to mock data
-      console.warn('API failed and no cache available, returning mock data');
-      return this.getMockSports();
-    }
+    );
   }
 
   /**

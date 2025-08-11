@@ -1,4 +1,5 @@
 import { BaseApiService } from './baseApiService';
+import { requestManager } from '../utils/requestManager';
 import type { 
   ApiResponse, 
   UserRole, 
@@ -191,25 +192,37 @@ class UserRegistrationService extends BaseApiService {
 
   // Get users list with filtering and pagination
   async getUsersList(params: UserListRequest = {}): Promise<UserListResponse> {
-    try {
-      const queryParams = new URLSearchParams();
-      
-      if (params.page) queryParams.append('page', params.page.toString());
-      if (params.limit) queryParams.append('limit', params.limit.toString());
-      if (params.search) queryParams.append('search', params.search);
-      if (params.role) queryParams.append('role', params.role);
-      if (params.account_status) queryParams.append('account_status', params.account_status);
-      if (params.city_id) queryParams.append('city_id', params.city_id);
-      if (params.sport_id) queryParams.append('sport_id', params.sport_id);
-      if (params.sort_by) queryParams.append('sort_by', params.sort_by);
-      if (params.sort_order) queryParams.append('sort_order', params.sort_order);
+    const queryParams = new URLSearchParams();
+    
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.search) queryParams.append('search', params.search);
+    if (params.role) queryParams.append('role', params.role);
+    if (params.account_status) queryParams.append('account_status', params.account_status);
+    if (params.city_id) queryParams.append('city_id', params.city_id);
+    if (params.sport_id) queryParams.append('sport_id', params.sport_id);
+    if (params.sort_by) queryParams.append('sort_by', params.sort_by);
+    if (params.sort_order) queryParams.append('sort_order', params.sort_order);
 
-      const response = await this.get(`/users?${queryParams.toString()}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching users list:', error);
-      throw new Error('Error fetching users list');
-    }
+    const url = `/users?${queryParams.toString()}`;
+    
+    return requestManager.request(
+      url,
+      async () => {
+        try {
+          const response = await this.get(url);
+          return response.data;
+        } catch (error) {
+          console.error('Error fetching users list:', error);
+          throw new Error('Error fetching users list');
+        }
+      },
+      params,
+      { 
+        ttl: 30 * 1000, // 30 seconds cache for user lists (more dynamic data)
+        forceRefresh: false 
+      }
+    );
   }
 
   // Get user details by ID
